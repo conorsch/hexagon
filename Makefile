@@ -9,7 +9,7 @@ fmt:
 
 .PHONY: clone
 clone:
-	./clone-to-dom0
+	./scripts/clone-to-dom0
 
 .PHONY: test
 test:
