@@ -14,8 +14,8 @@ if [[ "$(hostname)" != "dom0" ]]; then
 fi
 
 # Support environment variable overrides, but provide sane defaults.
-dev_vm="${HEXAGON_DEV_VM:-fleet}"
-dev_dir="${HEXAGON_DEV_DIR:-/home/user/gits/hexagon}"
+dev_vm="${HEXAGON_DEV_VM:-work}"
+dev_dir="${HEXAGON_DEV_DIR:-/home/user/hexagon}"
 
 # The dest directory in dom0 is not customizable.
 dom0_dev_dir="$HOME/hexagon"

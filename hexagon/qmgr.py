@@ -1,54 +1,46 @@
-#!/usr/bin/env python3
-"""
-Utility script to reboot Qubes domains. Attempts
-to perform a graceful shutdown, kills if shutdown fails,
-then starts up. Inspiration for the timeout logic taken
-from qubesadmin.tools.qvm_shutdown.main.
-"""
-import time
-import qubesadmin
-
-import subprocess
 import logging
 import os
+import subprocess
+import time
 
-# import coloredlogs
 
-# TODO: consider setting env var
-# colored_logs_field_styles = {"funcName": {"color": "cyan"}}
-# colored_logs_field_styles = {
-#    **coloredlogs.DEFAULT_FIELD_STYLES,
-#    **colored_logs_field_styles,
-# }
+import qubesadmin
+
 
 logfmt = "%(asctime)s %(levelname)-8s %(funcName)s() %(message)s"
 logging.basicConfig(format=logfmt, level=logging.DEBUG, datefmt="%Y-%m-%d %H:%M:%S")
-# coloredlogs.install(level="DEBUG", field_styles=colored_logs_field_styles, fmt=logfmt)
 
 
 CONFIG_DEFAULTS = {
     "autostart": False,
     "klass": "AppVM",
-    "template": "fedora-30",
+    "template": "fedora-31",
     "netvm": None,
     "label": "blue",
     "provides_network": False,
+    "vcpus": "2",
 }
 
 
-class CustomQube(object):
+class HexagonQube(object):
     def __init__(self, name, *args, **kwargs):
         self.name = name
-        self.desired_config = {**CONFIG_DEFAULTS, **kwargs}
-        self.outdated = False
+        # Don't clobber existing VM config unless explicitly requested
+        if self.exists():
+            self.vm = qubesadmin.Qubes().domains[self.name]
+            self.desired_config = {**kwargs}
+        else:
+            self.desired_config = {**CONFIG_DEFAULTS, **kwargs}
         self.pending_changes = []
         self.reboot_required = False
         self.rebuild_required = False
-        if self.exists():
-            self.vm = qubesadmin.Qubes().domains[self.name]
+        new_template = self.desired_config.get("template", "")
+        if new_template and new_template not in qubesadmin.Qubes().domains:
+            msg = "Target TemplateVM does not exist: {}".format(new_template)
+            raise Exception(msg)
 
     def __repr__(self):
-        s = "<CustomQube: {}>".format(self.name)
+        s = "<HexagonQube: {}>".format(self.name)
         return s
 
     def exists(self):
@@ -60,6 +52,14 @@ class CustomQube(object):
                 self.desired_config["klass"], self.name, self.desired_config["label"]
             )
 
+    def uptime(self):
+        if self.exists():
+            elapsed = int(time.time()) - int(float(self.vm.start_time))
+        else:
+            msg = "Cannot check uptime of non-existent VM"
+            raise NotImplementedError(msg)
+        return elapsed
+
     def recreate(self):
         if self.exists():
             self.ensure_halted()
@@ -68,31 +68,50 @@ class CustomQube(object):
             time.sleep(1)
         self.create()
 
-    def ensure_halted(self, wait=True):
+    def ensure_halted(self, wait=True, poll_interval=5):
         """
         Override shutdown method to block
         """
         if self.vm.is_running():
-            logging.debug("Shutting down VM: {}".format(self.vm.name))
-            self.vm.shutdown()
+            connected_vms = [x for x in self.vm.connected_vms if x.is_running()]
+            if connected_vms:
+                logging.warning(
+                    "Halting VM via poweroff (connected clients will be interrupted): {}".format(
+                        self.vm.name
+                    )
+                )
+                try:
+                    # Ideally we'd use:
+                    # self.vm.run("poweroff", user="root")
+                    # but that only works in dom0, in an Admin API domU it raises:
+                    # ValueError: non-default user not possible for calls from VM
+                    # so instead we'll just prefix it with sudo.
+                    self.vm.run("sudo poweroff")
+                # There's a good chance a successful poweroff will return non-zero
+                # Don't take that as a failure, since we'll poll for VM being stopped
+                # later and kill it if necessary
+                except subprocess.CalledProcessError:
+                    pass
+            else:
+                logging.debug("Halting VM via shutdown: {}".format(self.vm.name))
+                self.vm.shutdown()
             if wait:
                 timeout = 30
                 waited = 0
                 while waited < timeout:
                     power_state = self.vm.get_power_state()
+                    msg_f = "VM '{}' has power state {}"
                     if power_state == "Halted":
+                        msg = msg_f.format(self.name, power_state)
+                        logging.debug(msg)
                         break
                     else:
-                        logging.debug(
-                            "VM {} has power state {}, sleeping".format(
-                                self.name, power_state
-                            )
-                        )
-                        time.sleep(1)
-                        waited += 1
-                        continue
+                        msg = msg_f.format(self.name, power_state)
+                        logging.debug(msg)
+                    time.sleep(poll_interval)
+                    waited += poll_interval
         if self.vm.is_running():
-            logging.debug("Killing VM: {}".format(self.vm.name))
+            logging.warning("Halting VM via kill: {}".format(self.vm.name))
             self.vm.kill()
 
     def is_outdated(self):
@@ -105,51 +124,50 @@ class CustomQube(object):
         https://github.com/QubesOS/qubes-manager/blob/da2826db20fa852403240a45b3906a6c54b2fe33/qubesmanager/table_widgets.py#L402-L406
         """
         is_outdated = False
-        for vol in self.vm.volumes.values():
-            if vol.is_outdated():
-                is_outdated = True
+        if self.vm.klass in ("AppVM", "DispVM"):
+            for vol in self.vm.volumes.values():
+                if vol.is_outdated():
+                    is_outdated = True
         return is_outdated
 
     def reconcile(self):
         """
+        Apply all outstanding config changes to VM. If VM does not exist,
+        it will be created. Handles VM roughly, including rebooting despite
+        attached network clients if a netvm.
         """
-        logging.debug("Processing reconcile for {}".format(self.name))
+        # Logging is not mandatory, but calling changes_required is,
+        # since it populates the pending_changes attribute.
         if not self.changes_required():
-            logging.debug("VM requires no changes: {}".format(self.name))
-            return
+            logging.debug("{} requires no changes".format(self))
         else:
-            logging.debug("Proceeding with reconcile for: {}".format(self.name))
+            logging.debug("{} requires changes: {}".format(self, self.pending_changes))
 
+        # Make sure VM exists
         self.create()
+
+        # We'll restore the original power state when done
+        was_running = self.vm.is_running()
 
         reboot_required = False
         if self.is_outdated():
-            logging.debug("VM {} rebooted required: volumes".format(self.name))
             reboot_required = True
 
-        logging.debug("Checking pending changes...")
-        for c in self.pending_changes:
-            if c.reboot_required:
-                reboot_required = True
-            logging.debug("VM {} pending change: {}".format(self.name, c))
+        if any([c.reboot_required for c in self.pending_changes]):
+            reboot_required = True
+
+        if reboot_required:
+            # The ensure_halted operation blocks, so we can update settings
+            self.ensure_halted()
 
         if self.rebuild_required:
             self.recreate()
 
-        if reboot_required:
-            # Blocks
-            self.ensure_halted()
+        for c in self.pending_changes:
+            # logging.debug("Applying config change for {}: {}".format(self, c))
+            c.apply(self.vm)
 
-        self.vm.label = self.desired_config["label"]
-        self.vm.autostart = self.desired_config["autostart"]
-        logging.debug("NETVM SETTING: {}".format(self.desired_config["netvm"]))
-
-        if self.desired_config["netvm"]:
-            self.vm.netvm = self.desired_config["netvm"]
-        else:
-            self.vm.netvm = ""
-
-        if self.vm.autostart:
+        if self.vm.autostart or was_running:
             if not self.vm.is_running():
                 self.vm.start()
         else:
@@ -160,20 +178,22 @@ class CustomQube(object):
         self.vm = qubesadmin.Qubes().domains[self.name]
 
     def changes_required(self):
-        if not self.exists():
-            return True
-
         for k, v in self.desired_config.items():
-            # Stringify for comparison
-            actual_value = str(getattr(self.vm, k))
+            if self.exists():
+                # Stringify for comparison
+                actual_value = str(getattr(self.vm, k))
+            else:
+                actual_value = None
             if actual_value != str(self.desired_config[k]):
-                reboot_required = False
-                if k in ("template", "vcpus"):
-                    reboot_required = True
-                pending_change = VMConfigChange(
-                    k, actual_value, v, reboot_required=reboot_required
-                )
+                pending_change = VMConfigChange(k, actual_value, v)
                 self.pending_changes.append(pending_change)
+
+        # If VM doesn't exist, "klass" will be handled by create.
+        # Only if "klass" was passed to existing VM should we raise
+        # unimplemented (for now).
+        for i, x in enumerate(self.pending_changes):
+            if x.attribute == "klass" and not self.exists():
+                del (self.pending_changes[i])
 
         return len(self.pending_changes) > 0
 
@@ -195,21 +215,17 @@ class CustomQube(object):
 
     def update(self, force=False):
         """
-        Upgrades packages within VM.
+        Upgrades packages within VM. Uses qubesctl to trigger Saltstack logic.
+        Skips updates if none are available, unless force=True.
         """
-        # Will only work in dom0
+        # The qubesctl/salt logic will only work in dom0.
         if not self.in_dom0:
             raise NotImplementedError
 
         if self.updates_available() or force:
             logging.debug("Updating packages for VM: {}".format(self.name))
             if self.name == "dom0":
-                cmd = [
-                    "sudo",
-                    "qubesctl",
-                    "state.sls",
-                    "update.qubes-dom0",
-                ]
+                cmd = ["sudo", "qubesctl", "state.sls", "update.qubes-dom0"]
             else:
                 cmd = [
                     "sudo",
@@ -220,7 +236,18 @@ class CustomQube(object):
                     "state.sls",
                     "update.qubes-vm",
                 ]
-            subprocess.check_call(cmd)
+            cmd_output = subprocess.check_output(cmd).strip()
+            logging.debug("Updated packages for VM: {}".format(cmd_output))
+
+    def reboot(self, timeout=60, only_if_outdated=False):
+        """
+        Attempts to halt gracefully, then restart, the domU.
+        If timeout is reached without confirmed shutdown,
+        domain will be killed, then booted.
+        """
+        self.ensure_halted()
+        self.vm.start()
+        logging.debug("VM has started: {}".format(self.name))
 
 
 class VMConfigChange(object):
@@ -229,9 +256,34 @@ class VMConfigChange(object):
         self.old_value = old_value
         self.new_value = new_value
         self.reboot_required = reboot_required
+        if not self.reboot_required:
+            if self.attribute in ("label", "template", "vcpus", "virt_mode", "kernel"):
+                self.reboot_required = True
 
     def __repr__(self):
         s = "<VMConfigChange:{}: ".format(self.attribute)
         s += "{} -> {}, ".format(self.old_value, self.new_value)
         s += "reboot={}>".format(self.reboot_required)
         return s
+
+    def apply(self, vm):
+        if self.attribute in (
+            "label",
+            "template",
+            "vcpus",
+            "autostart",
+            "virt_mode",
+            "kernel",
+            "provides_network",
+        ):
+            if self.attribute == "vcpus":
+                self.new_value = int(self.new_value)
+            setattr(vm, self.attribute, self.new_value)
+        elif self.attribute == "netvm":
+            if self.new_value:
+                vm.netvm = self.new_value
+            else:
+                vm.netvm = ""
+        else:
+            msg = "VM property '{}' not supported".format(self.attribute)
+            raise NotImplementedError(msg)

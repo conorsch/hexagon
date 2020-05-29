@@ -5,9 +5,9 @@ import time
 from hexagon import qmgr
 
 
-def generate_vm_names():
-    for i in range(1, 5):
-        vm_name = "pytest-qmgr-{}".format(i)
+def generate_vm_names(fmt_string="hexagon-test-{}", n=5):
+    for i in range(1, n):
+        vm_name = fmt_string.format(i)
         yield vm_name
 
 
@@ -24,7 +24,7 @@ def ensure_vms_present():
     for vm_name in generate_vm_names():
         q = qubesadmin.Qubes()
         if vm_name not in q.domains:
-            x = qmgr.CustomQube(vm_name)
+            x = qmgr.HexagonQube(vm_name)
             x.reconcile()
         q = qubesadmin.Qubes()
         assert vm_name in q.domains
@@ -46,19 +46,19 @@ def test_true():
 
 
 def test_template_change_while_halted():
-    vm = qmgr.CustomQube("pytest-qmgr-1", template="debian-10")
+    vm = qmgr.HexagonQube("hexagon-test-1", template="debian-10")
     q = qubesadmin.Qubes()
     assert vm.name in q.domains
     assert not vm.pending_changes
     assert vm.desired_config["template"] == "debian-10"
-    vm.desired_config["template"] = "fedora-30"
+    vm.desired_config["template"] = "fedora-31"
     vm.reconcile()
-    assert vm.desired_config["template"] == "fedora-30"
+    assert vm.desired_config["template"] == "fedora-31"
 
 
 def test_template_change_while_running():
-    vm_name = "pytest-qmgr-2"
-    vm = qmgr.CustomQube(vm_name, template="debian-10", autostart=True)
+    vm_name = "hexagon-test-2"
+    vm = qmgr.HexagonQube(vm_name, template="debian-10", autostart=True)
     q = qubesadmin.Qubes()
     assert vm.name in q.domains
     assert not vm.pending_changes
@@ -68,9 +68,9 @@ def test_template_change_while_running():
     assert get_pref(vm_name, "start_time") != ""
     time_before_reconcile = get_pref(vm_name, "start_time")
     assert vm.desired_config["template"] == "debian-10"
-    vm.desired_config["template"] = "fedora-30"
+    vm.desired_config["template"] = "fedora-31"
     vm.reconcile()
-    assert get_pref(vm_name, "template") == "fedora-30"
+    assert get_pref(vm_name, "template") == "fedora-31"
     # TODO: figure out why this reboot cycle is required
     # Maybe the reconcile isn't rebooting?
     vm.ensure_halted()
@@ -80,10 +80,10 @@ def test_template_change_while_running():
 
 
 def test_default_netvm_is_none():
-    vm_name = "pytest-qmgr-3"
+    vm_name = "hexagon-test-3"
     q = qubesadmin.Qubes()
     assert vm_name in q.domains
-    vm = qmgr.CustomQube(vm_name, template="debian-10")
+    vm = qmgr.HexagonQube(vm_name, template="debian-10")
     q = qubesadmin.Qubes()
     assert vm_name in q.domains
     vm.reconcile()
@@ -93,7 +93,7 @@ def test_default_netvm_is_none():
 
 
 def test_netvm_change_while_running():
-    vm = qmgr.CustomQube("pytest-qmgr-4", template="debian-10", autostart=True)
+    vm = qmgr.HexagonQube("hexagon-test-4", template="debian-10", autostart=True)
     q = qubesadmin.Qubes()
     assert vm.name in q.domains
     assert str(vm.vm.netvm) == "None"

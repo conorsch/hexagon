@@ -1,111 +1,283 @@
 import argparse
 import concurrent.futures
-import qubesadmin
+import logging
+import os
+import sys
 import yaml
 
-from itertools import repeat
 
-import logging
-import coloredlogs
+import qubesadmin
+from .qmgr import HexagonQube
 
-from .qmgr import CustomQube
-
-
-# TODO: consider setting env var
-colored_logs_field_styles = {"funcName": {"color": "cyan"}}
-colored_logs_field_styles = {
-    **coloredlogs.DEFAULT_FIELD_STYLES,
-    **colored_logs_field_styles,
-}
 
 logfmt = "%(asctime)s %(levelname)-8s %(funcName)s() %(message)s"
 logging.basicConfig(format=logfmt, level=logging.DEBUG, datefmt="%Y-%m-%d %H:%M:%S")
-coloredlogs.install(level="DEBUG", field_styles=colored_logs_field_styles, fmt=logfmt)
-
-q = qubesadmin.Qubes()
-
-
-CONFIG_DEFAULTS = {
-    "autostart": False,
-    "klass": "AppVM",
-    "template": "fedora-30",
-    "netvm": None,
-    "label": "blue",
-    "provides_network": False,
-}
 
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "vms", nargs="?", type=str, action="store", help="VMs to configure"
-    )
-    parser.add_argument(
-        "--template",
-        default=CONFIG_DEFAULTS["template"],
-        action="store",
-        help="TemplateVM to set",
-    )
-    parser.add_argument(
-        "--netvm", default=CONFIG_DEFAULTS["netvm"], action="store", help="NetVM to set"
-    )
-    parser.add_argument(
-        "--config-file",
-        default="qubes.yml",
-        type=str,
-        action="store",
-        help="Load YAML config from",
-    )
-    parser.add_argument(
-        "--label",
-        default=CONFIG_DEFAULTS["label"],
-        action="store",
-        help="Label (color) to set",
-    )
     parser.add_argument(
         "--dry-run",
         default=False,
         action="store_true",
         help="Display proposed changes, but don't implement",
     )
+
+    # Python 3.5 (dom0) doesn't support required=True
+    # subparsers = parser.add_subparsers(dest='command', required=True)
+    subparsers = parser.add_subparsers(dest="command")
+
+    ls_parser = subparsers.add_parser("ls", help="ls VMs, by features or prefs")
+    ls_parser.add_argument(
+        "--tags", default="", action="store", help="select VMs by tag"
+    )
+
+    ls_parser.add_argument(
+        "--template",
+        default="",
+        action="store",
+        help="List only VMs based on specified TemplateVM",
+    )
+    ls_parser.add_argument(
+        "--updatable",
+        default=False,
+        action="store_true",
+        help="List only VMs with newer packages available",
+    )
+    ls_parser.add_argument(
+        "--outdated",
+        default=False,
+        action="store_true",
+        help="List only VMs whose TemplateVMs have been recently updated",
+    )
+    ls_parser.add_argument(
+        "vms", nargs=argparse.ZERO_OR_MORE, action="store", help="VMs to list"
+    )
+    reboot_parser = subparsers.add_parser("reboot", help="reboot VMs")
+    reboot_parser.add_argument(
+        "vms", nargs=argparse.ZERO_OR_MORE, action="store", help="VMs to reboot"
+    )
+    reboot_parser.add_argument(
+        "--outdated",
+        default=False,
+        action="store_true",
+        help="Reboot only VMs whose TemplateVMs have been recently updated",
+    )
+    update_parser = subparsers.add_parser("update", help="update packages inside VM")
+    update_parser.add_argument(
+        "vms", nargs=argparse.ZERO_OR_MORE, action="store", help="VMs to update"
+    )
+    update_parser.add_argument(
+        "--force",
+        default=False,
+        action="store_true",
+        help="update even if updates-available=0",
+    )
+    update_parser.add_argument(
+        "--max-concurrency",
+        action="store",
+        default=2,
+        help="How many VMs to update in parallel",
+    )
+    reconcile_parser = subparsers.add_parser(
+        "reconcile", help="apply all VM config options"
+    )
+
+    reconcile_parser.add_argument(
+        "vms", nargs=argparse.ZERO_OR_MORE, action="store", help="VMs to reconcile"
+    )
+
+    reconcile_parser.add_argument(
+        "--template",
+        action="store",
+        help="TemplateVM to set (shortcut for --property template=)",
+    )
+    reconcile_parser.add_argument(
+        "--netvm", action="store", help="NetVM to set (shortcut for --property netvm=)"
+    )
+    reconcile_parser.add_argument(
+        "--label",
+        action="store",
+        help="Label (color) to set (shortcut for --property label=)",
+    )
+    reconcile_parser.add_argument(
+        "--property",
+        action="append",
+        default=[],
+        type=lambda x: x.split("="),
+        help="VM attribute to set, e.g. 'vcpus=1'",
+    )
+
+    shutdown_parser = subparsers.add_parser(
+        "shutdown",
+        help="Ensures specified VMs are halted (even if clients are connected)",
+    )
+    shutdown_parser.add_argument(
+        "vms", nargs=argparse.ZERO_OR_MORE, action="store", help="VMs to shutdown"
+    )
+    start_parser = subparsers.add_parser(
+        "start", help="Ensures specified VMs are running"
+    )
+    start_parser.add_argument(
+        "vms", nargs=argparse.ZERO_OR_MORE, action="store", help="VMs to start"
+    )
     args = parser.parse_args()
+
+    # Python 3.5 compatibility requires explicit check for subcommand;
+    # later versions of argparse permit use of required=True.
+    if not args.command:
+        msg = "subcommand required, choose one of {ls, reboot, start, shutdown, update, reconcile}"
+        print(msg)
+        sys.exit(1)
+
     return args
 
 
 def load_config(config_filepath):
-    with open(config_filepath, "r") as f:
-        y = yaml.safe_load(f)
-    return y
+    cfg = {}
+    if os.path.exists(config_filepath):
+        with open(config_filepath, "r") as f:
+            cfg = yaml.safe_load(f)
+    return cfg
 
 
 def reconcile_vm(args, vm_name):
-    custom_config = merge_vm_config(args, vm_name)
-    cq = CustomQube(vm_name, **custom_config)
+    custom_config = {}
+    for p in args.property:
+        custom_config[p[0]] = p[1]
+    # logging.debug("Reconciling custom config: {}".format(custom_config))
+    cq = HexagonQube(vm_name, **custom_config)
     cq.reconcile()
 
 
-def merge_vm_config(args, vm_name):
-    cfg = load_config(args.config_file)
-    vm_cfg = {}
-    cfg_vm_defaults = cfg["qubes_vms"].get("_defaults", {})
-    cfg_vm_overrides = cfg["qubes_vms"].get(vm_name, {})
-    # Merge dicts, with overrides winning
-    vm_cfg = {**cfg_vm_defaults, **cfg_vm_overrides}
-    return vm_cfg
+def update_vm(args, vm_name):
+    cq = HexagonQube(vm_name)
+    cq.update(force=args.force)
+
+
+def reboot_vm(args, vm_name):
+    cq = HexagonQube(vm_name)
+    cq.reboot()
 
 
 def main():
     args = parse_args()
+    q = qubesadmin.Qubes()
     vms = args.vms
-    if not vms:
-        logging.debug("No VMs were declared")
-        vms = []
-        for k, v in load_config(args.config_file).get("qubes_vms", {}).items():
-            if k == "_defaults":
-                continue
-            vms.append(k)
+    # TODO: support --max-concurrency flag, defaulting to 4
+    # for "update" behavior, but for e.g. ls it's ok to raise
+    n_proc = len(vms) or 4
+    if args.command == "reconcile":
+        # Handle helper args, maybe belongs in parse_args
+        for property_alias in ("template", "netvm", "label"):
+            alias_value = getattr(args, property_alias)
+            if alias_value:
+                args.property.append([property_alias, alias_value])
+        if not vms:
+            logging.error("No VMs were declared")
+            # TODO: It'd be grand to read from a config file
+            msg = "Reconcile must target specific VMs"
+            raise NotImplementedError(msg)
+        func = reconcile_vm
 
-    logging.debug("Proceeding with vms: {}".format(vms))
-    executor = concurrent.futures.ThreadPoolExecutor(max_workers=5)
-    executor.map(reconcile_vm, repeat(args), vms)
-    executor.shutdown()
+    elif args.command == "ls":
+        logging.debug("Listing VMs...")
+        if vms:
+            vms = [HexagonQube(x.name) for x in q.domains if x.name in vms]
+        else:
+            vms = [HexagonQube(x.name) for x in q.domains]
+        n_proc = len(vms) or 5
+        if args.tags:
+            # TODO: support csv tags
+            vms = [x for x in vms if args.tags in x.vm.tags]
+        if args.template:
+            vms = [x for x in vms if getattr(x.vm, "template", "") == args.template]
+        if args.updatable:
+            vms = [x for x in vms if x.vm.features.get("updates-available", "0") == "1"]
+        if args.outdated:
+            vms = [x for x in vms if x.is_outdated()]
+        for vm in vms:
+            print(vm.name)
+        sys.exit(0)
+
+    elif args.command == "reboot":
+        if vms:
+            vms = [HexagonQube(x.name) for x in q.domains if x.name in vms]
+        if args.outdated and vms:
+            vms = [x for x in vms if x.is_outdated()]
+        elif args.outdated and not vms:
+            vms = [HexagonQube(x.name) for x in q.domains]
+            vms = [x for x in vms if x.is_outdated()]
+        vms = [x.name for x in vms]
+        func = reboot_vm
+
+    elif args.command == "update":
+        n_proc = args.max_concurrency
+        if not vms:
+            vms = [
+                x for x in q.domains if x.features.get("updates-available", "0") == "1"
+            ]
+            vms = [x.name for x in vms]
+        # TODO: handle dom0 separately, before all domUs
+        func = update_vm
+
+    elif args.command == "shutdown":
+        requested_vms = len(vms)
+        if requested_vms > 0:
+            vms = [HexagonQube(x.name) for x in q.domains if x.name in vms]
+            if len(vms) != requested_vms:
+                msg = "Some VMs could not be found"
+                raise Exception(msg)
+        else:
+            logging.error("No VMs were declared")
+            # TODO: It'd be grand to read from a config file
+            msg = "Shutdown must target specific VMs"
+            raise NotImplementedError(msg)
+
+        func = lambda args, x: x.ensure_halted()
+
+    elif args.command == "start":
+        requested_vms = len(vms)
+        if requested_vms > 0:
+            vms = [HexagonQube(x.name) for x in q.domains if x.name in vms]
+            if len(vms) != requested_vms:
+                msg = "Some VMs could not be found"
+                raise Exception(msg)
+        else:
+            logging.error("No VMs were declared")
+            # TODO: It'd be grand to read from a config file
+            msg = "Start must target specific VMs"
+            raise NotImplementedError(msg)
+
+        func = lambda args, x: x.vm.start()
+    else:
+        msg = "Action not supported: {}".format(args.command)
+        raise NotImplementedError(msg)
+
+    if args.dry_run:
+        logging.debug("Would {} VMs: {}".format(args.command, vms))
+        sys.exit(0)
+
+    logging.debug("Performing {} of VMs: {}".format(args.command, vms))
+    with concurrent.futures.ThreadPoolExecutor(max_workers=n_proc) as executor:
+        results = list(map(lambda x: executor.submit(func, args, x), vms))
+
+    errors = 0
+    for i, r in enumerate(results):
+        vm = vms[i]
+        try:
+            r.result()
+            logging.debug("VM operation {} completed: {}".format(args.command, vm))
+        except Exception as e:
+            errors += 1
+            logging.debug(
+                "VM operation {} failed: {}, error: {}".format(
+                    args.command, vm, repr(e)
+                )
+            )
+
+    logging.debug(
+        "All VM {} operations finished, with {} errors".format(args.command, errors)
+    )
+    if errors:
+        sys.exit(1)
