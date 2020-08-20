@@ -268,13 +268,15 @@ class VMConfigChange(object):
 
     def apply(self, vm):
         if self.attribute in (
+            "autostart",
+            "kernel",
             "label",
+            "maxmem",
+            "memory",
+            "provides_network",
             "template",
             "vcpus",
-            "autostart",
             "virt_mode",
-            "kernel",
-            "provides_network",
         ):
             if self.attribute == "vcpus":
                 self.new_value = int(self.new_value)
