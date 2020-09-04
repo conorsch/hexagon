@@ -23,6 +23,18 @@ watch:
 install-deps:
 	sudo apt install -y black flake8 python3-pytest qubes-core-admin-client inotify-hookable
 
+.PHONY: rpm
+rpm:
+	mkdir -p dist/
+	rm -f dist/*.tar.gz
+	/usr/bin/python3 setup.py sdist
+	cp dist/*.tar.gz rpm-build/SOURCES/
+	rpmbuild \
+		--define "_topdir $$PWD/rpm-build" \
+		--define "__python3 /usr/bin/python3" \
+		--define "python3_sitelib /usr/lib/python3.5/site-packages" \
+		-bb --clean "rpm-build/SPECS/hexagon.spec"
+
 .PHONY: install
 install:
 	find hexagon/ -type f -iname '*.pyc' -delete

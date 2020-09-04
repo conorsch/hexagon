@@ -1,1 +1,6 @@
 *.pyc
+dist/
+*.deb
+*.rpm
+*.tar.gz
+*.egg-info/
