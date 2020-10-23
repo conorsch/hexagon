@@ -77,6 +77,7 @@ def parse_args():
         "--max-concurrency",
         action="store",
         default=2,
+        type=int,
         help="How many VMs to update in parallel",
     )
     reconcile_parser = subparsers.add_parser(
