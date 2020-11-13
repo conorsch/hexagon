@@ -1,0 +1,27 @@
+#!/bin/bash
+# Installs locally built RPM in dom0.
+# Required for local builds.
+set -e
+set -u
+set -o pipefail
+
+
+fedora_version="$(rpm --eval '%{fedora}')"
+
+
+pkg="$(find rpm-build/ -type f -iname "*fc${fedora_version}.noarch.rpm" -print0 | sort -zV | tail -zn1)"
+if [[ -z $pkg ]]; then
+    echo "ERROR: No RPM found. Run 'make rpm' in the AppVM, then try again"
+    exit 1
+fi
+
+if [[ $fedora_version = "25" ]]; then
+    echo "Installing RPM for Qubes 4.0, Fedora ${fedora_version}..."
+elif [[ $fedora_version = "32" ]]; then
+    echo "Installing RPM for Qubes 4.1, Fedora ${fedora_version}..."
+else
+    echo "ERROR: Unsupported Fedora version '${fedora_version}'"
+    exit 2
+fi
+
+sudo dnf install -y "$pkg"

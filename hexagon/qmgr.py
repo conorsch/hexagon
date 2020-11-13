@@ -193,7 +193,7 @@ class HexagonQube(object):
         # unimplemented (for now).
         for i, x in enumerate(self.pending_changes):
             if x.attribute == "klass" and not self.exists():
-                del (self.pending_changes[i])
+                del self.pending_changes[i]
 
         return len(self.pending_changes) > 0
 
