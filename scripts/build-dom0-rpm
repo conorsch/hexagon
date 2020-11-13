@@ -1,0 +1,39 @@
+#!/bin/bash
+# Builds RPM for installation in dom0.
+# RPM is fully reproducible.
+set -e
+set -u
+set -o pipefail
+
+# Prepare tarball, rpmbuild will use it
+mkdir -p dist/
+rm -f dist/*.tar.gz
+rm -f rpm-build/RPMS/noarch/*.rpm
+/usr/bin/python3 setup.py sdist
+
+# Use the epoch time of the higher semver tag available.
+SOURCE_DATE_EPOCH="$(git tag | sort -V | tail -n 1 | xargs git log -1 --format=%at)"
+export SOURCE_DATE_EPOCH
+
+# Place tarball where rpmbuild will find it
+cp dist/*.tar.gz rpm-build/SOURCES/
+
+# Build for Qubes 4.0.x and 4.1.x, for which dom0 is based on
+# F25 and F32, respectively.
+for i in 25 32; do
+    # dom0 defaults to python3.5 in F25
+    python_version="python3.5"
+    if [[ $i = 32 ]]; then
+        python_version="python3.8"
+    fi
+    dist=".fc${i}"
+    rpmbuild \
+        --define "_topdir $PWD/rpm-build" \
+        --define "dist $dist" \
+        --define "_python_version $python_version" \
+        -bb --clean "rpm-build/SPECS/hexagon.spec"
+done
+
+local_rpms="$(find rpm-build/ -type f -iname '*.rpm' | sort -V | tail -n 1)"
+printf "\nRPM packages can be found at:\n\n%s\n" "$local_rpms"
+sha256sum "$local_rpms"
