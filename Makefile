@@ -23,6 +23,11 @@ watch:
 install-deps:
 	sudo apt install -y black flake8 python3-pytest qubes-core-admin-client inotify-hookable
 
+.PHONY: rpm
+rpm:
+	docker build -t hexagon .
+	docker run -v $(shell pwd):/app hexagon
+
 .PHONY: install
 install:
 	find hexagon/ -type f -iname '*.pyc' -delete

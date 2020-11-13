@@ -1,0 +1,40 @@
+#!/bin/bash
+#
+#
+# Builds RPM for dom0 bootstrap logic
+# $1 - Digest Hash of base docker container to use
+
+set -u
+set -e
+
+mkdir -p dist/
+ls -lsh dist/
+rm -f dist/*.tar.gz
+/usr/bin/python3 setup.py sdist
+
+# Tarball made by python3 has timestamps, doesn't honor SOURCE_DATE_EPOCH.
+# Let's repack the tarball simply to straighten out the metadata, so that
+# the tarball is reproducible, and therefore the rpm is too.
+
+tmpdir="$(mktemp -d)"
+tarball_name="$(basename dist/*.tar.gz)"
+tar -xzf "dist/${tarball_name}" -C "$tmpdir"
+rm -f dist/*.tar.gz
+
+pushd "$tmpdir"
+tar --mtime "$SOURCE_DATE_EPOCH" -cf "/app/dist/${tarball_name}" .
+popd
+
+echo "DEBUG OUTPUT HERE"
+ls -l dist/
+
+cp dist/*.tar.gz rpm-build/SOURCES/
+rpmbuild \
+    --define "_topdir $PWD/rpm-build" \
+    --define "__python3 /usr/bin/python3" \
+    --define "python3_sitelib /usr/lib/python3.5/site-packages" \
+    -bb --clean "rpm-build/SPECS/hexagon.spec"
+
+local_rpms="$(find rpm-build/ -type f -iname '*.rpm')"
+printf "\nRPM packages can be found at:\n\n%s\n" "$local_rpms"
+sha256sum "$local_rpms"
