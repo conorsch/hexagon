@@ -24,16 +24,15 @@ dom0_dev_dir="$HOME/hexagon"
 
 # Call out to target AppVM to create a tarball in dom0
 function create-tarball() {
-    printf "Cloning code from %s:%s ...\n" "${dev_vm}" "${dev_dir}"
+    printf 'Cloning code from %s:%s ...\n' "${dev_vm}" "${dev_dir}"
     qvm-run --pass-io "$dev_vm" \
         "tar -c --exclude-vcs \
-        --exclude='*.rpm' \
         -C '$(dirname "$dev_dir")' \
         '$(basename "$dev_dir")'" > /tmp/hexagon-proj.tar
 }
 
 function unpack-tarball() {
-    rm -rf "${dom0_dev_dir}/"*
+    rm -rf "${dom0_dev_dir:?}/"*
     tar xf /tmp/hexagon-proj.tar -C "${dom0_dev_dir}" --strip-components=1
 }
 

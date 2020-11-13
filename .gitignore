@@ -1,1 +1,5 @@
 *.pyc
+build/
+dist/
+hexagon.egg-info/
+rpm-build/
