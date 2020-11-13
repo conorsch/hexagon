@@ -1,0 +1,24 @@
+#!/bin/bash
+# Builds RPM for installation in dom0.
+# RPM is fully reproducible.
+set -e
+set -u
+set -o pipefail
+
+# Prepare tarball, rpmbuild will use it
+mkdir -p dist/
+rm -f dist/*.tar.gz
+/usr/bin/python3 setup.py sdist
+
+SOURCE_DATE_EPOCH=1615439649
+export SOURCE_DATE_EPOCH
+
+# Place tarball where rpmbuild will find it
+cp dist/*.tar.gz rpm-build/SOURCES/
+rpmbuild \
+    --define "_topdir $PWD/rpm-build" \
+    -bb --clean "rpm-build/SPECS/hexagon.spec"
+
+local_rpms="$(find rpm-build/ -type f -iname '*.rpm' | sort -V | tail -n 1)"
+printf "\nRPM packages can be found at:\n\n%s\n" "$local_rpms"
+sha256sum "$local_rpms"
