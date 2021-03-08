@@ -124,7 +124,7 @@ class HexagonQube(object):
         https://github.com/QubesOS/qubes-manager/blob/da2826db20fa852403240a45b3906a6c54b2fe33/qubesmanager/table_widgets.py#L402-L406
         """
         is_outdated = False
-        if self.vm.klass in ("AppVM", "DispVM"):
+        if self.vm.klass in ("AppVM", "DispVM") and self.vm.is_running():
             for vol in self.vm.volumes.values():
                 if vol.is_outdated():
                     is_outdated = True
