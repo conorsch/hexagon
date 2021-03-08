@@ -51,6 +51,13 @@ def parse_args():
         help="List only VMs whose TemplateVMs have been recently updated",
     )
     ls_parser.add_argument(
+        "--property",
+        action="append",
+        default=[],
+        type=lambda x: x.split("="),
+        help="Filter by VM attribute, property, e.g. vcpus=2",
+    )
+    ls_parser.add_argument(
         "vms", nargs=argparse.ZERO_OR_MORE, action="store", help="VMs to list"
     )
     reboot_parser = subparsers.add_parser("reboot", help="reboot VMs")
@@ -179,6 +186,7 @@ def main():
             # TODO: It'd be grand to read from a config file
             msg = "Reconcile must target specific VMs"
             raise NotImplementedError(msg)
+        vms = [HexagonQube(x.name) for x in q.domains if x.name in vms]
         func = reconcile_vm
 
     elif args.command == "ls":
@@ -197,6 +205,16 @@ def main():
             vms = [x for x in vms if x.vm.features.get("updates-available", "0") == "1"]
         if args.outdated:
             vms = [x for x in vms if x.is_outdated()]
+        if args.property:
+            for p in args.property:
+                k, v = p[0], p[1]
+                vms = [x for x in vms if hasattr(x.vm, k)]
+                if v.startswith("!"):
+                    v = v[1:]
+                    vms = [x for x in vms if str(getattr(x.vm, k, "")) != v]
+                else:
+                    vms = [x for x in vms if str(getattr(x.vm, k, "")) == v]
+
         for vm in vms:
             print(vm.name)
         sys.exit(0)
