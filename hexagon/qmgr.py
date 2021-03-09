@@ -238,6 +238,8 @@ class HexagonQube(object):
                 ]
             cmd_output = subprocess.check_output(cmd).strip()
             logging.debug("Updated packages for VM: {}".format(cmd_output))
+        else:
+            logging.debug("No updates available, and force not set for VM: {}".format(self.name))
 
     def reboot(self, timeout=60, only_if_outdated=False):
         """

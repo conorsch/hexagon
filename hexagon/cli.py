@@ -216,7 +216,10 @@ def main():
         if not vms:
             vms = [x for x in q.domains if x.features.get("updates-available", "0") == "1"]
             vms = [x.name for x in vms]
-        # TODO: handle dom0 separately, before all domUs
+        if "dom0" in vms:
+            logging.debug("Updating dom0 first")
+            vms = [x for x in vms if x != "dom0"]
+            update_vm(args, "dom0")
         func = update_vm
 
     elif args.command == "shutdown":
