@@ -28,15 +28,10 @@ def parse_args():
     subparsers = parser.add_subparsers(dest="command")
 
     ls_parser = subparsers.add_parser("ls", help="ls VMs, by features or prefs")
-    ls_parser.add_argument(
-        "--tags", default="", action="store", help="select VMs by tag"
-    )
+    ls_parser.add_argument("--tags", default="", action="store", help="select VMs by tag")
 
     ls_parser.add_argument(
-        "--template",
-        default="",
-        action="store",
-        help="List only VMs based on specified TemplateVM",
+        "--template", default="", action="store", help="List only VMs based on specified TemplateVM"
     )
     ls_parser.add_argument(
         "--updatable",
@@ -57,9 +52,7 @@ def parse_args():
         type=lambda x: x.split("="),
         help="Filter by VM attribute, property, e.g. vcpus=2",
     )
-    ls_parser.add_argument(
-        "vms", nargs=argparse.ZERO_OR_MORE, action="store", help="VMs to list"
-    )
+    ls_parser.add_argument("vms", nargs=argparse.ZERO_OR_MORE, action="store", help="VMs to list")
     reboot_parser = subparsers.add_parser("reboot", help="reboot VMs")
     reboot_parser.add_argument(
         "vms", nargs=argparse.ZERO_OR_MORE, action="store", help="VMs to reboot"
@@ -75,10 +68,7 @@ def parse_args():
         "vms", nargs=argparse.ZERO_OR_MORE, action="store", help="VMs to update"
     )
     update_parser.add_argument(
-        "--force",
-        default=False,
-        action="store_true",
-        help="update even if updates-available=0",
+        "--force", default=False, action="store_true", help="update even if updates-available=0"
     )
     update_parser.add_argument(
         "--max-concurrency",
@@ -87,26 +77,20 @@ def parse_args():
         type=int,
         help="How many VMs to update in parallel",
     )
-    reconcile_parser = subparsers.add_parser(
-        "reconcile", help="apply all VM config options"
-    )
+    reconcile_parser = subparsers.add_parser("reconcile", help="apply all VM config options")
 
     reconcile_parser.add_argument(
         "vms", nargs=argparse.ZERO_OR_MORE, action="store", help="VMs to reconcile"
     )
 
     reconcile_parser.add_argument(
-        "--template",
-        action="store",
-        help="TemplateVM to set (shortcut for --property template=)",
+        "--template", action="store", help="TemplateVM to set (shortcut for --property template=)"
     )
     reconcile_parser.add_argument(
         "--netvm", action="store", help="NetVM to set (shortcut for --property netvm=)"
     )
     reconcile_parser.add_argument(
-        "--label",
-        action="store",
-        help="Label (color) to set (shortcut for --property label=)",
+        "--label", action="store", help="Label (color) to set (shortcut for --property label=)"
     )
     reconcile_parser.add_argument(
         "--property",
@@ -117,15 +101,12 @@ def parse_args():
     )
 
     shutdown_parser = subparsers.add_parser(
-        "shutdown",
-        help="Ensures specified VMs are halted (even if clients are connected)",
+        "shutdown", help="Ensures specified VMs are halted (even if clients are connected)"
     )
     shutdown_parser.add_argument(
         "vms", nargs=argparse.ZERO_OR_MORE, action="store", help="VMs to shutdown"
     )
-    start_parser = subparsers.add_parser(
-        "start", help="Ensures specified VMs are running"
-    )
+    start_parser = subparsers.add_parser("start", help="Ensures specified VMs are running")
     start_parser.add_argument(
         "vms", nargs=argparse.ZERO_OR_MORE, action="store", help="VMs to start"
     )
@@ -233,9 +214,7 @@ def main():
     elif args.command == "update":
         n_proc = args.max_concurrency
         if not vms:
-            vms = [
-                x for x in q.domains if x.features.get("updates-available", "0") == "1"
-            ]
+            vms = [x for x in q.domains if x.features.get("updates-available", "0") == "1"]
             vms = [x.name for x in vms]
         # TODO: handle dom0 separately, before all domUs
         func = update_vm
@@ -253,7 +232,10 @@ def main():
             msg = "Shutdown must target specific VMs"
             raise NotImplementedError(msg)
 
-        func = lambda args, x: x.ensure_halted()
+        def f(args, x):
+            x.ensure_halted
+
+        func = f
 
     elif args.command == "start":
         requested_vms = len(vms)
@@ -268,7 +250,10 @@ def main():
             msg = "Start must target specific VMs"
             raise NotImplementedError(msg)
 
-        func = lambda args, x: x.vm.start()
+        def f(args, x):
+            x.vm.start()
+
+        func = f
     else:
         msg = "Action not supported: {}".format(args.command)
         raise NotImplementedError(msg)
@@ -289,14 +274,8 @@ def main():
             logging.debug("VM operation {} completed: {}".format(args.command, vm))
         except Exception as e:
             errors += 1
-            logging.debug(
-                "VM operation {} failed: {}, error: {}".format(
-                    args.command, vm, repr(e)
-                )
-            )
+            logging.debug("VM operation {} failed: {}, error: {}".format(args.command, vm, repr(e)))
 
-    logging.debug(
-        "All VM {} operations finished, with {} errors".format(args.command, errors)
-    )
+    logging.debug("All VM {} operations finished, with {} errors".format(args.command, errors))
     if errors:
         sys.exit(1)

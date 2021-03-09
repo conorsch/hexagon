@@ -71,7 +71,7 @@ def test_template_change_while_running():
     assert vm.desired_config["template"] == "debian-10"
     vm.desired_config["template"] = "fedora-{}".format(FEDORA_VERSION)
     vm.reconcile()
-    assert get_pref(vm_name, "template") == "fedora-{}" .format(FEDORA_VERSION)
+    assert get_pref(vm_name, "template") == "fedora-{}".format(FEDORA_VERSION)
     # TODO: figure out why this reboot cycle is required
     # Maybe the reconcile isn't rebooting?
     vm.ensure_halted()

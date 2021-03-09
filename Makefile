@@ -1,6 +1,6 @@
 .PHONY: lint
 lint:
-	black --check .
+	black --line-length 100 --check .
 	flake8 --max-line-length 100
 	
 .PHONY: fmt
