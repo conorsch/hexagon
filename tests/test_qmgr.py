@@ -3,6 +3,7 @@ import qubesadmin
 import time
 
 from hexagon import qmgr
+from .base import FEDORA_VERSION
 
 
 def generate_vm_names(fmt_string="hexagon-test-{}", n=5):
@@ -51,9 +52,9 @@ def test_template_change_while_halted():
     assert vm.name in q.domains
     assert not vm.pending_changes
     assert vm.desired_config["template"] == "debian-10"
-    vm.desired_config["template"] = "fedora-31"
+    vm.desired_config["template"] = "fedora-{}".format(FEDORA_VERSION)
     vm.reconcile()
-    assert vm.desired_config["template"] == "fedora-31"
+    assert vm.desired_config["template"] == "fedora-{}".format(FEDORA_VERSION)
 
 
 def test_template_change_while_running():
@@ -68,9 +69,9 @@ def test_template_change_while_running():
     assert get_pref(vm_name, "start_time") != ""
     time_before_reconcile = get_pref(vm_name, "start_time")
     assert vm.desired_config["template"] == "debian-10"
-    vm.desired_config["template"] = "fedora-31"
+    vm.desired_config["template"] = "fedora-{}".format(FEDORA_VERSION)
     vm.reconcile()
-    assert get_pref(vm_name, "template") == "fedora-31"
+    assert get_pref(vm_name, "template") == "fedora-{}" .format(FEDORA_VERSION)
     # TODO: figure out why this reboot cycle is required
     # Maybe the reconcile isn't rebooting?
     vm.ensure_halted()
