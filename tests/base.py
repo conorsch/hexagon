@@ -7,6 +7,9 @@ import subprocess
 import time
 
 
+FEDORA_VERSION = 32
+
+
 def generate_vm_names(fmt_string="hexagon-test-{}", n=2):
     for i in range(1, n):
         vm_name = fmt_string.format(i)

@@ -1,6 +1,7 @@
 import subprocess
 
-from .base import ensure_vms_absent, ensure_vms_present
+
+from .base import ensure_vms_absent, ensure_vms_present, FEDORA_VERSION
 
 
 def setup_module(module):
@@ -19,7 +20,7 @@ def test_ls_by_tag():
 
 
 def test_ls_by_template():
-    cmd = "./bin/hexagon ls --template fedora-31"
+    cmd = "./bin/hexagon ls --template fedora-{}".format(FEDORA_VERSION)
     output = run_hexagon(cmd)
     stdout_lines = output.split("\n")
     assert "sys-firewall" in stdout_lines
@@ -28,7 +29,7 @@ def test_ls_by_template():
 
 
 def test_ls_by_tag_and_template():
-    cmd = "./bin/hexagon ls --tags hexagon --template fedora-31"
+    cmd = "./bin/hexagon ls --tags hexagon --template fedora-{}".format(FEDORA_VERSION)
     output = "hexagon-test-1"
     run_hexagon(cmd, expected_output=output)
 

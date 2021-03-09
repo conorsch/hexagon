@@ -22,11 +22,11 @@ hexagon ls --outdated
 # Reboot particular VM
 hexagon reboot sys-whonix
 
-# Modify TemplateVM settings for several VMs at once (e.g. fedora-30 -> fedora-31)
-hexagon reconcile --template fedora-31 sys-usb sys-net sys-firewall
+# Modify TemplateVM settings for several VMs at once (e.g. fedora-30 -> fedora-32)
+hexagon reconcile --template fedora-32 sys-usb sys-net sys-firewall
 
 # Upgrade packages within a particular VM
-hexagon update fedora-31
+hexagon update fedora-32
 
 # Upgrade packages for all VMs with pending updates
 hexagon update
@@ -64,10 +64,10 @@ When a new version of fedora is released, you must manually update
 your templates to the new version.
 
 ```
-[user@dom0 ~]$ hexagon ls --template fedora-31
+[user@dom0 ~]$ hexagon ls --template fedora-32
 2020-05-29 16:38:04 DEBUG    main() Listing VMs...
 default-mgmt-dvm
-fedora-31-dvm
+fedora-32-dvm
 sys-firewall
 sys-net
 sys-usb
@@ -87,17 +87,17 @@ Yikes! The `vault` and `work` VMs are several versions behind.
 Let's update them to the latest:
 
 ```
-[user@dom0 ~]$ hexagon reconcile work vault --template fedora-31
+[user@dom0 ~]$ hexagon reconcile work vault --template fedora-32
 2020-05-29 16:38:30 DEBUG    main() Performing reconcile of VMs: ['work', 'vault']
-2020-05-29 16:38:30 DEBUG    reconcile() <HexagonQube: vault> requires changes: [<VMConfigChange:template: fedora-29 -> fedora-31, reboot=True>]
-2020-05-29 16:38:30 DEBUG    reconcile() <HexagonQube: work> requires changes: [<VMConfigChange:template: fedora-29 -> fedora-31, reboot=True>]
+2020-05-29 16:38:30 DEBUG    reconcile() <HexagonQube: vault> requires changes: [<VMConfigChange:template: fedora-29 -> fedora-32, reboot=True>]
+2020-05-29 16:38:30 DEBUG    reconcile() <HexagonQube: work> requires changes: [<VMConfigChange:template: fedora-29 -> fedora-32, reboot=True>]
 2020-05-29 16:38:31 DEBUG    main() VM operation reconcile completed: work
 2020-05-29 16:38:31 DEBUG    main() VM operation reconcile completed: vault
 2020-05-29 16:38:31 DEBUG    main() All VM reconcile operations finished, with 0 errors
-[user@dom0 ~]$ hexagon ls --template fedora-31
+[user@dom0 ~]$ hexagon ls --template fedora-32
 2020-05-29 16:38:34 DEBUG    main() Listing VMs...
 default-mgmt-dvm
-fedora-31-dvm
+fedora-32-dvm
 sys-firewall
 sys-net
 sys-usb

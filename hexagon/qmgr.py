@@ -14,7 +14,7 @@ logging.basicConfig(format=logfmt, level=logging.DEBUG, datefmt="%Y-%m-%d %H:%M:
 CONFIG_DEFAULTS = {
     "autostart": False,
     "klass": "AppVM",
-    "template": "fedora-31",
+    "template": "fedora-32",
     "netvm": None,
     "label": "blue",
     "provides_network": False,
