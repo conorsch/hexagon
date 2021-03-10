@@ -236,7 +236,7 @@ def main():
             raise NotImplementedError(msg)
 
         def f(args, x):
-            x.ensure_halted
+            x.ensure_halted()
 
         func = f
 
