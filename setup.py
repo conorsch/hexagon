@@ -31,5 +31,5 @@ if __name__ == "__main__":
             "Intended Audience :: Developers",
             "Operating System :: OS Independent",
         ],
-        entry_points={"console_scripts": ["hexagon=hexagon.cli:main"]},
+        scripts=["bin/hexagon"],
     )

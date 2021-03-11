@@ -28,6 +28,7 @@ for i in 25 32; do
     fi
     dist=".fc${i}"
     rpmbuild \
+        --quiet \
         --define "_topdir $PWD/rpm-build" \
         --define "dist $dist" \
         --define "_python_version $python_version" \

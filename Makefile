@@ -28,7 +28,7 @@ install-deps:
 		rpm rpm-common diffoscope reprotest
 
 .PHONY: rpm
-rpm:
+rpm: clean
 	./scripts/build-dom0-rpm
 
 .PHONY: reprotest
@@ -37,11 +37,7 @@ reprotest:
 
 .PHONY: install
 install:
-	find hexagon/ -type f -iname '*.pyc' -delete
-	find hexagon/ -type d -empty -delete
-	sudo install -m 755 -d /usr/lib/python3.5/site-packages/hexagon
-	sudo install -m 644 hexagon/* -t /usr/lib/python3.5/site-packages/hexagon
-	sudo install -m 755 bin/hexagon /usr/local/bin
+	./scripts/install-rpm
 	@echo "###"
 	@echo "# Installation complete! Try running:"
 	@echo "#    hexagon ls"
