@@ -7,6 +7,10 @@ lint:
 fmt:
 	black --line-length 100 .
 
+.PHONY: clean
+clean:
+	git clean -fdX
+
 .PHONY: clone
 clone:
 	./scripts/clone-to-dom0
