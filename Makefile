@@ -5,9 +5,7 @@ lint:
 
 .PHONY: fmt
 fmt:
-	black --line-length 100 .
-
-.PHONY: clean
+	black --line-length 100 .  .PHONY: clean
 clean:
 	git clean -fdX
 
@@ -20,7 +18,7 @@ test:
 
 .PHONY: install-deps
 install-deps:
-	sudo apt-get install --no-install-recommends -y black flake8 python3-pytest qubes-core-admin-client \
+	sudo apt-get install --no-install-recommends -y black flake8 python3-pytest \
 		rpm rpm-common diffoscope reprotest disorderfs faketime
 
 .PHONY: rpm
@@ -29,7 +27,14 @@ rpm: clean
 
 .PHONY: reprotest
 reprotest:
+	# Run reprotest with all variations
 	reprotest -c "make rpm" . "rpm-build/RPMS/noarch/*.rpm"
+
+.PHONY: reprotest-ci
+reprotest-ci:
+	# Disable a few variations, to support CircleCI container environments.
+	# Requires a sed hack to reprotest, see .circle/config.yml
+	TERM=xterm-256color reprotest --variations "+all, +kernel, -domain_host, -fileordering" -c "make rpm" . "rpm-build/RPMS/noarch/*.rpm"
 
 .PHONY: install
 install:
