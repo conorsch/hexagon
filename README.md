@@ -32,29 +32,27 @@ hexagon update fedora-32
 hexagon update
 ```
 
-
 ## Installation
-In order to use the tool, you must copy the code into dom0.
+In order to use the tool, you must build the RPM in an AppVM,
+then copy that RPM package into dom0.
 **Copying code to dom0 is dangerous.** Make sure you've read
 the [Qubes OS documentation on copying-to-dom0](https://www.qubes-os.org/doc/copy-from-dom0/#copying-to-dom0)
 before proceeding.
 
-
-Cloning for the first time:
-```
-qvm-run --pass-io work 'tar -c -C /home/user/ hexagon' | tar xvf -
-cd hexagon
-make install
-```
-
-Thereafter you can use:
+Build the RPM in the AppVM where you checked out this repo:
 
 ```
-make clone
-make install
+make rpm
 ```
 
-TODO: make uninstall target.
+Then, copy the package to dom0:
+
+```
+qvm-run --pass-io work '/home/user/hexagon/rpm-build/RPMS/noarch/hexagon-0.1.0-1.fc25.noarch.rpm' > /tmp/hexagon.rpm
+sudo dnf install -y /tmp/hexagon.rpm
+```
+
+To uninstall, simply run `sudo dnf remove hexagon` in dom0.
 
 ## Examples
 
@@ -107,3 +105,17 @@ work
 
 The `vault` and `work` VMs are now based on the latest version of Fedora.
 Much better!
+
+## Reproducible builds
+The RPM build process is reproducible. You can use the `make reprotest` target to verify.
+There's one odd assumption, which is that you're building in a Debian Stable AppVM.
+It was simply easier to wire up the requisite logic under Debian than F32, but the build
+process really should support Fedora properly. To build:
+
+```
+make install-deps
+make rpm
+make reprotest
+```
+
+Both Qubes 4.0 & 4.1-compatible RPM packages will be created. Install the one that's appropriate for your environment.
