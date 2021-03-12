@@ -38,6 +38,5 @@ for i in 25 32; do
         -bb --clean "rpm-build/SPECS/hexagon.spec"
 done
 
-local_rpms="$(find rpm-build/ -type f -iname '*.rpm' | sort -V)"
-printf '\nRPM packages can be found at:\n\n%s\n' "$local_rpms"
-find rpm-build/ -type f -iname '*.rpm' -print0 | sort -zV | xargs -0 -r sha256sum
+printf '\nBuild complete! RPMs and their checksums are:\n\n'
+find rpm-build/ -type f -iname '*.rpm' -print0 | sort -zV | xargs -0 sha256sum
