@@ -48,7 +48,7 @@ make rpm
 Then, copy the package to dom0:
 
 ```
-qvm-run --pass-io work '/home/user/hexagon/rpm-build/RPMS/noarch/hexagon-0.1.1-1.fc25.noarch.rpm' > /tmp/hexagon.rpm
+qvm-run --pass-io work '/home/user/hexagon/rpm-build/RPMS/noarch/hexagon-0.1.2-1.fc25.noarch.rpm' > /tmp/hexagon.rpm
 sudo dnf install -y /tmp/hexagon.rpm
 ```
 

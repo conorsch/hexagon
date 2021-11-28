@@ -10,7 +10,7 @@ import qubesadmin
 from .qmgr import HexagonQube
 
 
-VERSION  = "0.1.1"
+VERSION = "0.1.2"
 
 
 logfmt = "%(asctime)s %(levelname)-8s %(funcName)s() %(message)s"

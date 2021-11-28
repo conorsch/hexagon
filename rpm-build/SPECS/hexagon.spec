@@ -1,5 +1,5 @@
 %global srcname hexagon
-%global version 0.1.1
+%global version 0.1.2
 %global __python3 /usr/bin/python3
 %global python3_sitelib /usr/lib/%{_python_version}/site-packages
 # For reproducible builds
@@ -51,6 +51,12 @@ find %{buildroot} -exec touch -m -d @%{_source_date_epoch} {} +
 echo "DEBUG: finished installing hexagon rpm"
 
 %changelog
+* Mon Nov 29 2021 Conor Schaefer <conor@freedom.press> - 0.1.2
+- Fix reconcile action for template migrations
+- Support shutdown for DispVMs (destroys them)
+- Move script /usr/local/bin/hexagon -> /usr/bin/hexagon
+- Add --version flag
+
 * Fri Mar 12 2021 Conor Schaefer <conor@freedom.press> - 0.1.1
 - Builds RPM, reproducibly, for Qubes 4.0 & 4.1
 - Adds CI tests to verify reproducible builds via reprotest
