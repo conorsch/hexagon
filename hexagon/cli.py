@@ -169,10 +169,8 @@ def main():
                 args.property.append([property_alias, alias_value])
         if not vms:
             logging.error("No VMs were declared")
-            # TODO: It'd be grand to read from a config file
             msg = "Reconcile must target specific VMs"
             raise NotImplementedError(msg)
-        vms = [HexagonQube(x.name) for x in q.domains if x.name in vms]
         func = reconcile_vm
 
     elif args.command == "ls":
