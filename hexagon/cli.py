@@ -10,12 +10,17 @@ import qubesadmin
 from .qmgr import HexagonQube
 
 
+VERSION  = "0.1.1"
+
+
 logfmt = "%(asctime)s %(levelname)-8s %(funcName)s() %(message)s"
 logging.basicConfig(format=logfmt, level=logging.DEBUG, datefmt="%Y-%m-%d %H:%M:%S")
 
 
 def parse_args():
     parser = argparse.ArgumentParser()
+    parser.add_argument('--version', action='version',
+                        version='%(prog)s {version}'.format(version=VERSION))
     parser.add_argument(
         "--dry-run",
         default=False,
