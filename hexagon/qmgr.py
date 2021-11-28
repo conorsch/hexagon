@@ -101,7 +101,8 @@ class HexagonQube(object):
                 while waited < timeout:
                     power_state = self.vm.get_power_state()
                     msg_f = "VM '{}' has power state {}"
-                    if power_state == "Halted":
+                    # DispVMs will have power state "NA" after shutdown, since they don't exist anymore.
+                    if power_state in ("Halted", "NA"):
                         msg = msg_f.format(self.name, power_state)
                         logging.debug(msg)
                         break
