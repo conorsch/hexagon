@@ -45,7 +45,7 @@ find %{buildroot} -exec touch -m -d @%{_source_date_epoch} {} +
 
 %files
 %{python3_sitelib}/hexagon/*.py
-/usr/local/bin/hexagon
+/usr/bin/hexagon
 
 %post
 echo "DEBUG: finished installing hexagon rpm"
