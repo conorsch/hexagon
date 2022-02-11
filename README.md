@@ -51,7 +51,7 @@ make rpm
 Then, copy the package to dom0:
 
 ```
-qvm-run --pass-io work '/home/user/hexagon/rpm-build/RPMS/noarch/hexagon-0.1.2-1.fc32.noarch.rpm' > /tmp/hexagon.rpm
+qvm-run --pass-io work '/home/user/hexagon/rpm-build/RPMS/noarch/hexagon-0.1.3-1.fc32.noarch.rpm' > /tmp/hexagon.rpm
 sudo dnf --disablerepo=qubes-dom0-cached install -y /tmp/hexagon.rpm
 ```
 
