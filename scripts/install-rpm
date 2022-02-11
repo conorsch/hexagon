@@ -9,7 +9,7 @@ set -o pipefail
 fedora_version="$(rpm --eval '%{fedora}')"
 
 
-pkg="$(find rpm-build/ -type f -iname "*fc${fedora_version}.noarch.rpm" -print0 | sort -zV | tail -zn1)"
+pkg="$(find rpm-build/ -type f -iname "*fc${fedora_version}.noarch.rpm" | sort -V | tail -n1)"
 if [[ -z $pkg ]]; then
     echo "ERROR: No RPM found. Run 'make rpm' in the AppVM, then try again"
     exit 1
@@ -24,4 +24,6 @@ else
     exit 2
 fi
 
-sudo dnf install -y "$pkg"
+# Disable "qubes-dom0-cached" repo to avoid problems with local rpm
+# installation on Qubes 4.1.
+sudo dnf --disablerepo=qubes-dom0-cached install -y "$pkg"
