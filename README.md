@@ -45,7 +45,7 @@ before proceeding.
 Build the RPM in the AppVM where you checked out this repo:
 
 ```
-make rpm
+just rpm
 ```
 
 Then, copy the package to dom0:
