@@ -2,4 +2,5 @@
 build/
 dist/
 hexagon.egg-info/
-rpm-build/
+rpm-build/*
+!rpm-build/SPECS/

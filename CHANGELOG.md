@@ -1,5 +1,9 @@
 # hexagon changelog
 
+## 0.1.4
+- Update docs and defaults for Qubes 4.2
+- Move script back /usr/local/bin/hexagon -> /usr/bin/hexagon
+
 ## 0.1.3
 - Update docs and defaults for Qubes 4.1
 - Move script back /usr/bin/hexagon -> /usr/local/bin/hexagon

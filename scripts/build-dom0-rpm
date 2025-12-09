@@ -27,20 +27,28 @@ export SOURCE_DATE_EPOCH
 # Place tarball where rpmbuild will find it
 cp dist/*.tar.gz rpm-build/SOURCES/
 
-# Build for Qubes 4.0.x and 4.1.x, for which dom0 is based on
-# F25 and F32, respectively.
-for i in 25 32; do
-    # dom0 defaults to python3.5 in F25
-    python_version="python3.5"
-    if [[ $i = 32 ]]; then
-        python_version="python3.8"
+# The version of Fedora used for building must match that of dom0;
+# here's how this versions have lined up historically:
+#
+#   Qubes 4.0.x => F25 => python3.5
+#   Qubes 4.1.x => F32 => python3.8
+#   Qubes 4.2.x => F37 => python3.11
+#   Qubes 4.3.x => F42 => python3.13
+#
+# Update the vars below to match
+for i in 37 42; do
+# for i in 37 ; do
+    python_version="3.11"
+    if [[ $i = 42 ]]; then
+        python_version="3.13"
     fi
     dist=".fc${i}"
+    echo "Building for dom0 based on ${dist} with Python version ${python_version}..."
     rpmbuild \
         --quiet \
         --define "_topdir $PWD/rpm-build" \
         --define "dist $dist" \
-        --define "_python_version $python_version" \
+        --define "_target_python_version $python_version" \
         -bb --clean "rpm-build/SPECS/hexagon.spec"
 done
 

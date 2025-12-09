@@ -21,7 +21,9 @@ test:
 
 # install dev dependencies; assumes fedora host system
 install-deps:
-  sudo dnf install -y black flake8 python3-pytest rpm diffoscope reprotest faketime
+  sudo dnf install -y \
+    black flake8 python3-pytest rpm diffoscope reprotest faketime \
+    python3-devel python3.11-devel
 
 # build RPM for dom0
 rpm: clean

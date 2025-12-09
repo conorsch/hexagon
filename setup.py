@@ -7,7 +7,7 @@ exclude = ["tests"]
 with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
-version = "0.1.3"
+version = "0.1.4"
 
 
 if __name__ == "__main__":
@@ -15,7 +15,7 @@ if __name__ == "__main__":
         name="hexagon",
         author="Conor Schaefer",
         version=version,
-        author_email="conor@freedom.press",
+        author_email="conor@ruin.dev",
         description="Experimental CLI for managing Qubes OS VMs",
         long_description=long_description,
         long_description_content_type="text/markdown",

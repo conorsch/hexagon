@@ -4,9 +4,7 @@
 #   https://github.com/freedomofpress/securedrop-workstation/blob/master/scripts/clone-to-dom0
 #
 # Copies code files from domU to dom0
-set -e
-set -u
-set -o pipefail
+set -euo pipefail
 
 # Ensure we're running in dom0, otherwise clone action could destroy
 # active work in AppVM.

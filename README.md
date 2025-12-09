@@ -51,8 +51,8 @@ just rpm
 Then, copy the package to dom0:
 
 ```
-qvm-run --pass-io work '/home/user/hexagon/rpm-build/RPMS/noarch/hexagon-0.1.3-1.fc32.noarch.rpm' > /tmp/hexagon.rpm
-sudo dnf --disablerepo=qubes-dom0-cached install -y /tmp/hexagon.rpm
+qvm-run --pass-io work '/home/user/hexagon/rpm-build/RPMS/noarch/hexagon-0.1.4-1.fc37.noarch.rpm' > /tmp/hexagon.rpm
+sudo dnf install -y /tmp/hexagon.rpm
 ```
 
 To uninstall, simply run `sudo dnf remove hexagon` in dom0.
@@ -108,6 +108,26 @@ work
 
 The `vault` and `work` VMs are now based on the latest version of Fedora.
 Much better!
+
+## Development
+
+To clone the repository into dom0 (dangerous!):
+
+```
+qvm-run --pass-io work "tar -c --exclude-vcs -C '/home/user/src/hexagon' ." > /tmp/hexagon.tar
+mkdir -p ~/hexagon
+tar -xf /tmp/hexagon.tar -C ~/hexagon --strip-components=1
+```
+
+From then on, from dom0, you can:
+
+```
+cd ~/hexagon
+just clone
+```
+
+Note that you may need to set `HEXAGON_DEV_VM` and `HEXAGON_DEV_DIR` as env vars,
+depending on your setup.
 
 ## Reproducible builds
 The RPM build process is reproducible. You can use the `make reprotest` target to verify.
