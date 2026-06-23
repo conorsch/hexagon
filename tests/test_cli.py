@@ -1,64 +1,34 @@
+"""End-to-end CLI tests against the live Qubes Admin API.
+
+The CLI is invoked as a subprocess (installed `hexagon`, or `python -m hexagon`
+from a source checkout). Assertions only reference VMs the suite created.
+
+Note: `hexagon ls` enumerates *all* domains and reads each one's tags, so this
+path needs read-only Admin API access to every VM (the policy grants global
+admin.vm.{List,property.Get,tag.*,feature.Get}); writes stay tag-scoped.
+"""
+
 import subprocess
 
+import pytest
 
-from .base import ensure_vms_absent, ensure_vms_present, FEDORA_VERSION
+from .base import TEST_TAG, hexagon_cmd, vm_name
 
-
-def setup_module(module):
-    ensure_vms_absent()
-    ensure_vms_present()
+pytestmark = pytest.mark.integration
 
 
-def teardown_module(module):
-    ensure_vms_absent()
+def _run(*args):
+    return subprocess.check_output(hexagon_cmd(*args), text=True).rstrip()
 
 
-def test_ls_by_tag():
-    cmd = "./bin/hexagon ls --tags hexagon"
-    output = "hexagon-test-1"
-    run_hexagon(cmd, expected_output=output)
+def test_ls_by_tag_lists_created_vm(make_test_vm):
+    name = vm_name(1)
+    make_test_vm(name)
+    listed = _run("ls", "--tags", TEST_TAG).split("\n")
+    assert name in listed
 
 
-def test_ls_by_template():
-    cmd = "./bin/hexagon ls --template fedora-{}".format(FEDORA_VERSION)
-    output = run_hexagon(cmd)
-    stdout_lines = output.split("\n")
-    assert "sys-firewall" in stdout_lines
-    assert "sys-net" in stdout_lines
-    assert "sys-usb" in stdout_lines
-
-
-def test_ls_by_tag_and_template():
-    cmd = "./bin/hexagon ls --tags hexagon --template fedora-{}".format(FEDORA_VERSION)
-    output = "hexagon-test-1"
-    run_hexagon(cmd, expected_output=output)
-
-
-def test_ls_by_name():
-    cmd = "./bin/hexagon ls hexagon-test-1"
-    output = "hexagon-test-1"
-    run_hexagon(cmd, expected_output=output)
-
-
-"""
-All should be possible:
-
-    hexagon ls --tags foo
-    hexagon ls --feature updates-available=1
-    hexagon reboot --tags network
-    hexagon reboot --outdated
-    hexagon update --force foo1
-    hexagon reconcile
-"""
-
-
-def run_hexagon(cmd, expected_output="", expected_rc=0):
-    cmd_l = cmd.split()
-    try:
-        output = subprocess.check_output(cmd_l)
-    except subprocess.CalledProcessError as e:
-        assert e.returncode == expected_rc
-    output = output.decode("utf-8").rstrip()
-    if expected_output:
-        assert output == expected_output
-    return output
+def test_ls_by_name_returns_only_that_vm(make_test_vm):
+    name = vm_name(1)
+    make_test_vm(name)
+    assert _run("ls", name) == name

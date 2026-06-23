@@ -11,10 +11,15 @@ logfmt = "%(asctime)s %(levelname)-8s %(funcName)s() %(message)s"
 logging.basicConfig(format=logfmt, level=logging.DEBUG, datefmt="%Y-%m-%d %H:%M:%S")
 
 
+# Single source of truth for the default TemplateVM. The test suite re-imports
+# this (see tests/base.py) so there's exactly one place to bump it.
+DEFAULT_TEMPLATE = "fedora-43"
+
+
 CONFIG_DEFAULTS = {
     "autostart": False,
     "klass": "AppVM",
-    "template": "fedora-32",
+    "template": DEFAULT_TEMPLATE,
     "netvm": None,
     "label": "blue",
     "provides_network": False,
@@ -23,6 +28,11 @@ CONFIG_DEFAULTS = {
 
 
 class HexagonQube(object):
+    # FUTURE: __init__ calls qubesadmin.Qubes() directly, so unit tests must
+    # monkeypatch it (see tests/conftest.py::fake_qubes). A cleaner design would
+    # inject the app, e.g. `def __init__(self, name, *, app=None, **kwargs)` with
+    # `app = app or qubesadmin.Qubes()`, letting tests pass a fake without
+    # patching. Deferred to keep this change scoped to the test harness.
     def __init__(self, name, *args, **kwargs):
         self.name = name
         # Don't clobber existing VM config unless explicitly requested
