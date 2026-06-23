@@ -13,11 +13,17 @@
           system = "x86_64-linux";
         };
 
+        # Single source of truth for the version: pyproject.toml. Bumping it
+        # there flows through to the RPM derivation and rpmbuild (via --define).
+        # See docs/releasing.md.
+        version = (builtins.fromTOML (builtins.readFile ./pyproject.toml)).project.version;
+
         # Python environment for tests and building the RPM. Linting/formatting is
         # handled by the standalone `ruff` in `tooling`, not via this env. The dom0
         # RPM ships pure source (no compiled deps), so pip + setuptools are all
         # that's required at build time.
         pythonEnv = pkgs.python313.withPackages (ps: with ps; [
+          build
           pip
           pytest
           pytest-testinfra
@@ -70,7 +76,7 @@
         # create the sdist tarball, hand it to rpmbuild, and emit the noarch RPMs.
         packages.rpm = pkgs.stdenv.mkDerivation {
           pname = "hexagon-rpm";
-          version = "0.1.4";
+          inherit version;
 
           src = ./.;
 
@@ -113,7 +119,8 @@
             find %{buildroot} -exec touch -m -d @%{_source_date_epoch} {} +'
 
             mkdir -p dist rpm-build/SOURCES rpm-build/RPMS
-            python3 setup.py sdist
+            # PEP 517 sdist; --no-isolation uses the env's setuptools (offline).
+            python3 -m build --sdist --no-isolation
             cp dist/*.tar.gz rpm-build/SOURCES/
 
             # See scripts/build-dom0-rpm for the Qubes->Fedora->Python version matrix.

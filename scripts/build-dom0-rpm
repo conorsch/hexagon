@@ -15,7 +15,9 @@ fi
 mkdir -p dist/
 rm -f dist/*.tar.gz
 rm -f rpm-build/RPMS/noarch/*.rpm
-/usr/bin/python3 setup.py sdist
+# Build the source tarball via PEP 517. --no-isolation keeps the build offline
+# (uses the env's setuptools) for reproducibility.
+/usr/bin/python3 -m build --sdist --no-isolation
 
 # The spec relocates pip's output from the build host's python sitelib to the
 # target dom0 version. On a Fedora host python3-rpm-macros defines
