@@ -1,49 +1,42 @@
+"""Shared constants and helpers for the hexagon test suite.
+
+This is the single place the suite imports test-wide settings from. The default
+TemplateVM is re-imported from the application code (hexagon.qmgr.DEFAULT_TEMPLATE)
+so there's exactly one place to bump it; override per-run with HEXAGON_TEST_TEMPLATE.
 """
-Helper functions, pytest fixtures for test suite.
-"""
 
-import qubesadmin
-from hexagon import qmgr
-import subprocess
-import time
+import os
+import sys
 
+from hexagon.qmgr import DEFAULT_TEMPLATE
 
-FEDORA_VERSION = 32
+# Tag applied to every VM the suite creates. The qrexec policy scopes the
+# management qube's Admin API access to VMs carrying this tag, so teardown can
+# only ever touch test VMs (see docs/testing.md and qubes/policy.d/).
+TEST_TAG = "hexagon-test"
 
+# All test VMs are named "<NAME_PREFIX><n>"; teardown is doubly guarded by both
+# the tag and this prefix.
+NAME_PREFIX = "hexagon-test-"
 
-def generate_vm_names(fmt_string="hexagon-test-{}", n=2):
-    for i in range(1, n):
-        vm_name = fmt_string.format(i)
-        yield vm_name
+# TemplateVM used for created test VMs. Defaults to the app's default; override
+# for a given environment with HEXAGON_TEST_TEMPLATE=fedora-XX.
+TEMPLATE = os.environ.get("HEXAGON_TEST_TEMPLATE", DEFAULT_TEMPLATE)
 
-
-def setup_module(module):
-    ensure_vms_absent()
-    ensure_vms_present()
-
-
-def teardown_module(module):
-    ensure_vms_absent()
+# How to invoke the CLI in end-to-end tests. By default we run it from the
+# source checkout via `python -m hexagon` (works without installing). Set
+# HEXAGON_BIN to test the installed console script instead, e.g. HEXAGON_BIN=hexagon.
+HEXAGON_BIN = os.environ.get("HEXAGON_BIN")
 
 
-def ensure_vms_present():
-    for vm_name in generate_vm_names():
-        q = qubesadmin.Qubes()
-        if vm_name not in q.domains:
-            x = qmgr.HexagonQube(vm_name)
-            x.reconcile()
-            x.vm.tags.add("hexagon")
-        q = qubesadmin.Qubes()
-        assert vm_name in q.domains
+def hexagon_cmd(*args):
+    """argv for invoking the hexagon CLI (installed binary or `python -m hexagon`)."""
+    if HEXAGON_BIN:
+        return [HEXAGON_BIN, *args]
+    return [sys.executable, "-m", "hexagon", *args]
 
 
-def ensure_vms_absent():
-    for vm_name in generate_vm_names():
-        q = qubesadmin.Qubes()
-        if vm_name in q.domains:
-            subprocess.check_call(["qvm-shutdown", "--wait", vm_name])
-            time.sleep(1)
-            subprocess.check_call(["qvm-remove", "-f", vm_name])
-            time.sleep(1)
-        q = qubesadmin.Qubes()
-        assert vm_name not in q.domains
+def vm_name(n):
+    """Canonical name for the nth test VM. (Not ``test_``-prefixed so pytest
+    doesn't collect it as a test.)"""
+    return "{}{}".format(NAME_PREFIX, n)

@@ -26,3 +26,14 @@ packages = ["hexagon"]
 
 [tool.ruff]
 line-length = 100
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# Unit tests run anywhere (incl. the Nix dev shell / CI); integration tests need
+# a live Qubes Admin API and are skipped unless explicitly enabled. See
+# tests/conftest.py and docs/testing.md.
+markers = [
+    "unit: pure-logic tests, no Qubes required",
+    "integration: requires a live Qubes Admin API (dom0 or a management AppVM)",
+]
+addopts = "-ra"

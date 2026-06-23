@@ -32,11 +32,16 @@ rpm:
 clone:
 	./scripts/clone-to-dom0
 
-# run integration tests (dom0 only; uses system python since qubesadmin isn't in nixpkgs)
-[group('dom0')]
+# run unit tests (no Qubes required; runs in the dev shell / CI)
+[group('dev')]
 test:
-	@/usr/bin/python3 -c 'import qubesadmin' 2>/dev/null || { echo "ERROR: qubesadmin not importable; run in dom0 after 'just install-deps'." >&2; exit 1; }
-	PYTHONPATH=$$PWD /usr/bin/python3 -m pytest -vv tests
+	pytest -m unit -vv
+
+# run integration tests against the live Qubes Admin API (dom0 or a management AppVM)
+[group('dom0')]
+test-integration:
+	@/usr/bin/python3 -c 'import qubesadmin' 2>/dev/null || { echo "ERROR: qubesadmin not importable; run in dom0 or a management AppVM after 'just install-deps'." >&2; exit 1; }
+	PYTHONPATH=$$PWD /usr/bin/python3 -m pytest -m integration --run-integration -vv
 
 # install built RPM in dom0
 [group('dom0')]
