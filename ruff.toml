@@ -1,0 +1,2 @@
+# Preserve the project's historical 100-char line length (was black/flake8).
+line-length = 100

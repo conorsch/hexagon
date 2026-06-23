@@ -4,3 +4,7 @@ dist/
 hexagon.egg-info/
 rpm-build/*
 !rpm-build/SPECS/
+
+# nix
+/result
+.direnv/

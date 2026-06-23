@@ -19,8 +19,9 @@ logging.basicConfig(format=logfmt, level=logging.DEBUG, datefmt="%Y-%m-%d %H:%M:
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--version', action='version',
-                        version='%(prog)s {version}'.format(version=VERSION))
+    parser.add_argument(
+        "--version", action="version", version="%(prog)s {version}".format(version=VERSION)
+    )
     parser.add_argument(
         "--dry-run",
         default=False,

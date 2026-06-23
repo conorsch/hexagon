@@ -1,49 +1,48 @@
 # run project linters
+[group('dev')]
 lint:
-	black --line-length 100 --check .
-	flake8 --max-line-length 100
+	ruff check .
+	ruff format --check .
 
 # format python code
+[group('dev')]
 fmt:
-	black --line-length 100 .
+	ruff format .
+	ruff check --fix .
 
-# remove all non-version-controlled artifacfts from the repo; destructive action!
-clean:
-	git clean -fdX
+# build RPM for dom0 (native Fedora rpm toolchain; see also: nix build .#rpm)
+[group('build')]
+rpm:
+	./scripts/build-dom0-rpm
 
-# target for copying repo contents from AppVM to dom0
+# check package reproducibility (builds with the native rpm toolchain)
+[group('build')]
+reprotest:
+	./scripts/reprotest-wrapper
+
+# copy repo contents from AppVM to dom0
+[group('dom0')]
 clone:
 	./scripts/clone-to-dom0
 
-# run all tests
+# run integration tests (dom0 only; uses system python since qubesadmin isn't in nixpkgs)
+[group('dom0')]
 test:
-	PYTHONPATH=$$PWD pytest-3 -vv tests
-
-# install dev dependencies; assumes fedora host system
-install-deps:
-  sudo dnf install -y \
-    black flake8 python3-pytest rpm diffoscope reprotest faketime \
-    python3-devel python3.11-devel
-
-# build RPM for dom0
-rpm: clean
-	./scripts/build-dom0-rpm
-
-# check package reproducibility
-reprotest:
-	# Run reprotest with all variations
-	reprotest -c "just rpm" . "rpm-build/RPMS/noarch/*.rpm"
-
-# check package reproducibility, minimally, for CI-compatibility
-reprotest-ci:
-	# Disable a few variations, to support CircleCI container environments.
-	# Requires a sed hack to reprotest, see .circle/config.yml
-	TERM=xterm-256color reprotest --variations "+all, +kernel, -domain_host, -fileordering" -c "make rpm" . "rpm-build/RPMS/noarch/*.rpm"
+	@/usr/bin/python3 -c 'import qubesadmin' 2>/dev/null || { echo "ERROR: qubesadmin not importable; run in dom0 after 'just install-deps'." >&2; exit 1; }
+	PYTHONPATH=$$PWD /usr/bin/python3 -m pytest -vv tests
 
 # install built RPM in dom0
+[group('dom0')]
 install:
 	./scripts/install-rpm
 	@echo "###"
 	@echo "# Installation complete! Try running:"
 	@echo "#    hexagon ls"
 	@echo "###"
+
+# install dev dependencies; assumes fedora host system
+[group('setup')]
+install-deps:
+  sudo dnf install -y \
+    ruff python3-pytest rpm diffoscope reprotest faketime \
+    python3-devel qubes-core-admin-client

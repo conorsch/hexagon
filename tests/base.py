@@ -1,6 +1,7 @@
 """
 Helper functions, pytest fixtures for test suite.
 """
+
 import qubesadmin
 from hexagon import qmgr
 import subprocess

@@ -17,6 +17,12 @@ rm -f dist/*.tar.gz
 rm -f rpm-build/RPMS/noarch/*.rpm
 /usr/bin/python3 setup.py sdist
 
+# The spec relocates pip's output from the build host's python sitelib to the
+# target dom0 version. On a Fedora host python3-rpm-macros defines
+# %{python3_version}; outside it (e.g. the Nix dev shell) it isn't, so derive it
+# from the interpreter that actually performs the install.
+host_python_version="$(/usr/bin/python3 -c 'import sys; print("%d.%d" % sys.version_info[:2])')"
+
 # Use the epoch time of the highest semver tag available.
 # SOURCE_DATE_EPOCH="$(git tag | sort -V | tail -n 1 | xargs git log -1 --format=%at)"
 # Use the epoch time of the most recent commit. If works in dev,
@@ -44,11 +50,16 @@ for i in 37 42; do
     fi
     dist=".fc${i}"
     echo "Building for dom0 based on ${dist} with Python version ${python_version}..."
+    # --nodeps: BuildRequires are checked against an rpmdb in /var/lib/rpm, which
+    # is absent outside a Fedora host; the dev shell supplies the tooling instead.
     rpmbuild \
         --quiet \
+        --nodeps \
         --define "_topdir $PWD/rpm-build" \
+        --define "_prefix /usr" \
         --define "dist $dist" \
         --define "_target_python_version $python_version" \
+        --define "python3_version $host_python_version" \
         -bb --clean "rpm-build/SPECS/hexagon.spec"
 done
 

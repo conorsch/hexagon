@@ -27,7 +27,7 @@ if __name__ == "__main__":
             "Development Status :: 3 - Alpha",
             "Programming Language :: Python :: 3",
             "Topic :: Software Development :: Libraries :: Python Modules",
-            "License :: OSI Approved :: " "GNU General Public License v3 or later (GPLv3+)",
+            "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
             "Intended Audience :: Developers",
             "Operating System :: OS Independent",
         ],
