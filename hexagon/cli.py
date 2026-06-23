@@ -3,6 +3,8 @@ import concurrent.futures
 import logging
 import os
 import sys
+from importlib.metadata import PackageNotFoundError, version as _pkg_version
+
 import yaml
 
 
@@ -10,7 +12,10 @@ import qubesadmin
 from .qmgr import HexagonQube
 
 
-VERSION = "0.1.3"
+try:
+    VERSION = _pkg_version("hexagon")
+except PackageNotFoundError:  # running from a source checkout, not installed
+    VERSION = "0.0.0+unknown"
 
 
 logfmt = "%(asctime)s %(levelname)-8s %(funcName)s() %(message)s"

@@ -44,5 +44,5 @@ install:
 [group('setup')]
 install-deps:
   sudo dnf install -y \
-    ruff python3-pytest rpm diffoscope reprotest faketime \
+    ruff python3-pytest python3-build rpm diffoscope reprotest faketime \
     python3-devel qubes-core-admin-client

@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hexagon"
+version = "0.1.4"
+description = "Experimental CLI for managing Qubes OS VMs"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "GPL-3.0-or-later"
+authors = [{ name = "Conor Schaefer", email = "conor@ruin.dev" }]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Programming Language :: Python :: 3",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+Homepage = "https://github.com/conorsch/hexagon"
+
+# Generates /usr/bin/hexagon (replaces the hand-written bin/hexagon wrapper).
+[project.scripts]
+hexagon = "hexagon.cli:main"
+
+[tool.setuptools]
+packages = ["hexagon"]
+
+[tool.ruff]
+line-length = 100
