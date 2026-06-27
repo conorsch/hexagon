@@ -12,4 +12,5 @@ fi
 
 echo "Installing ${pkg}..."
 # Disable "qubes-dom0-cached" repo to avoid problems with local rpm installation.
-sudo dnf --disablerepo=qubes-dom0-cached install -y "$pkg"
+# sudo dnf --disablerepo=qubes-dom0-cached install -y "$pkg"
+sudo dnf install -y "$pkg"

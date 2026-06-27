@@ -29,8 +29,13 @@ Source0:	%{srcname}-%{version}.tar.gz
 
 BuildArch:	noarch
 
-# Provided by dom0; hexagon merely imports them at runtime.
-Requires:	python3-qubesadmin, qubes-core-admin-client
+# hexagon imports qubesadmin at runtime. The package that provides it varies
+# across Qubes environments (python3-qubesadmin in templates, pre-installed
+# under a different name in dom0 where qubes-core-admin-client is not a
+# resolvable package), so use a soft dependency: dnf pulls it in when the
+# package exists in the repos, but never blocks installation where it
+# doesn't. hexagon will error clearly at runtime if the module is missing.
+Recommends:	python3-qubesadmin
 
 %description
 This package contains a Python3 library and "hexagon" CLI
@@ -79,6 +84,11 @@ find %{buildroot} -exec touch -m -d @%{source_date_epoch} {} +
 %{_bindir}/qvm-reboot
 
 %changelog
+* Mon Jul 20 2026 Conor Schaefer <conor@ruin.dev> - 0.2.1-alpha.2
+- Drop hard Requires on qubes-core-admin-client (not available in dom0)
+- Soften python3-qubesadmin to Recommends so the same RPM installs in both
+  dom0 and AppVMs
+
 * Sun Jul 19 2026 Conor Schaefer <conor@ruin.dev> - 0.2.1-alpha.1
 - Install qvm-reboot launcher alongside hexagon
 - Bake version string into _version.py so --version works without dist-info

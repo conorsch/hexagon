@@ -2,6 +2,9 @@
 
 ## unreleased
 
+- fix(rpm): drop hard `Requires` on `qubes-core-admin-client` (not available in
+  dom0); soften `python3-qubesadmin` to `Recommends` so the same noarch RPM
+  installs in both dom0 and AppVMs
 - feat(flake): add `packages.hexagon` nix output — `nix profile install .#hexagon` puts both `hexagon` and `qvm-reboot` on PATH; `nix run .#hexagon` and `nix run .#qvm-reboot` also work. qubesadmin is not bundled (install separately via RPM in dom0)
 - feat(pyproject): declare `hexagon` console script in `[project.scripts]` (previously only `qvm-reboot` was declared; `hexagon` was created only by the RPM spec)
 - fix(rpm): install `qvm-reboot` launcher (was declared as a pip entry point but never shipped in the noarch RPM)
