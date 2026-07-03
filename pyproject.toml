@@ -21,10 +21,6 @@ classifiers = [
 [project.urls]
 Homepage = "https://github.com/conorsch/hexagon"
 
-# Generates /usr/bin/hexagon (replaces the hand-written bin/hexagon wrapper).
-[project.scripts]
-hexagon = "hexagon.cli:main"
-
 [tool.setuptools]
 packages = ["hexagon"]
 

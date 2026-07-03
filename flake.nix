@@ -13,9 +13,9 @@
           system = "x86_64-linux";
         };
 
-        # Single source of truth for the version: pyproject.toml. Bumping it
-        # there flows through to the RPM derivation and rpmbuild (via --define).
-        # See docs/releasing.md.
+        # The version is declared in pyproject.toml (read here for the RPM
+        # derivation's name/metadata) and mirrored in the spec's %global version.
+        # `just bump <version>` keeps the two in sync; see docs/releasing.md.
         version = (builtins.fromTOML (builtins.readFile ./pyproject.toml)).project.version;
 
         # Python environment for tests and building the RPM. Linting/formatting is
@@ -38,7 +38,6 @@
           bashInteractive
           cargo-nextest
           coreutils
-          diffoscope
           fd
           file
           git
@@ -72,8 +71,9 @@
 
         };
 
-        # Build the dom0 RPM(s) reproducibly. Mirrors scripts/build-dom0-rpm:
-        # create the sdist tarball, hand it to rpmbuild, and emit the noarch RPMs.
+        # Build the dom0 RPM reproducibly: create the sdist tarball, hand it to
+        # rpmbuild, and emit the single noarch RPM. This is the canonical build;
+        # `just rpm` simply invokes it.
         packages.rpm = pkgs.stdenv.mkDerivation {
           pname = "hexagon-rpm";
           inherit version;
@@ -84,63 +84,35 @@
 
           dontConfigure = true;
 
-          # Reproducible build timestamp. scripts/build-dom0-rpm derives this from
-          # the latest git commit, but a flake build doesn't include .git in the
-          # sandbox; self.lastModified is the revision-tracking equivalent.
+          # Reproducible build timestamp. A flake build doesn't include .git in
+          # the sandbox, so use self.lastModified as the revision-tracking
+          # equivalent of the latest commit's epoch.
           SOURCE_DATE_EPOCH = toString (self.lastModified or 315532800);
 
           buildPhase = ''
             runHook preBuild
 
             export HOME="$TMPDIR"
-            pyExe="$(command -v python3)"
-            hostPyVer="$(python3 -c 'import sys; print("%d.%d" % sys.version_info[:2])')"
 
-            # The spec hardcodes Fedora's /usr/bin/python3, which is absent in the
-            # Nix sandbox; point it at the python from nativeBuildInputs instead.
-            substituteInPlace rpm-build/SPECS/hexagon.spec \
-              --replace-fail '/usr/bin/python3' "$pyExe"
+            # The unpacked source lives in the read-only Nix store, so give
+            # rpmbuild a writable _topdir under $TMPDIR to create BUILD/ etc.
+            topdir="$TMPDIR/rpm-build"
+            mkdir -p dist "$topdir"/{SOURCES,SPECS,BUILD,RPMS,tmp}
 
-            # Fedora's python installs under the /usr prefix; the Nix python uses
-            # its own store prefix, which would make the spec's sitelib relocation
-            # miss. Pin pip's install prefix to /usr (a no-op on Fedora) so the
-            # buildroot layout matches what the spec expects.
-            substituteInPlace rpm-build/SPECS/hexagon.spec \
-              --replace-fail '--no-build-isolation --root %{buildroot} .' \
-                             '--no-build-isolation --prefix /usr --root %{buildroot} .'
-
-            # pip stamps the installed script with the build-time interpreter,
-            # which under Nix is a /nix/store path that won't exist in dom0.
-            # Rewrite it to the Fedora interpreter the package targets.
-            substituteInPlace rpm-build/SPECS/hexagon.spec \
-              --replace-fail \
-                'find %{buildroot} -exec touch -m -d @%{_source_date_epoch} {} +' \
-                'sed -i "1s|^#!.*python3.*|#!/usr/bin/python3|" %{buildroot}/%{_bindir}/%{srcname}
-            find %{buildroot} -exec touch -m -d @%{_source_date_epoch} {} +'
-
-            mkdir -p dist rpm-build/SOURCES rpm-build/RPMS
             # PEP 517 sdist; --no-isolation uses the env's setuptools (offline).
             python3 -m build --sdist --no-isolation
-            cp dist/*.tar.gz rpm-build/SOURCES/
+            cp dist/*.tar.gz "$topdir/SOURCES/"
+            cp rpm-build/SPECS/hexagon.spec "$topdir/SPECS/"
 
-            # See scripts/build-dom0-rpm for the Qubes->Fedora->Python version matrix.
-            #   Qubes 4.2.x => F37 => python3.11
-            #   Qubes 4.3.x => F42 => python3.13
-            for i in 37 42; do
-              python_version="3.11"
-              if [ "$i" = 42 ]; then
-                python_version="3.13"
-              fi
-              echo "Building for dom0 based on .fc''${i} with Python ''${python_version}..."
-              rpmbuild \
-                --nodeps \
-                --define "_topdir $PWD/rpm-build" \
-                --define "_prefix /usr" \
-                --define "dist .fc''${i}" \
-                --define "_target_python_version $python_version" \
-                --define "python3_version $hostPyVer" \
-                -bb --clean rpm-build/SPECS/hexagon.spec
-            done
+            # The spec ships pure source + a launcher (no pip, no site-packages),
+            # so one noarch RPM covers every dom0. Nothing here is Fedora- or
+            # Python-version-specific, hence no substituteInPlace or build loop.
+            rpmbuild \
+              --nodeps \
+              --define "_topdir $topdir" \
+              --define "_tmppath $topdir/tmp" \
+              --define "_prefix /usr" \
+              -bb --clean "$topdir/SPECS/hexagon.spec"
 
             runHook postBuild
           '';
@@ -148,7 +120,7 @@
           installPhase = ''
             runHook preInstall
             mkdir -p "$out"
-            cp rpm-build/RPMS/noarch/*.rpm "$out/"
+            cp "$TMPDIR/rpm-build"/RPMS/noarch/*.rpm "$out/"
             runHook postInstall
           '';
 

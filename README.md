@@ -1,7 +1,9 @@
 # hexagon
+
 A rough-and-tumble CLI tool for managing [Qubes OS](https://qubes-os.org) VMs.
 
 ## Why?
+
 Because I wanted these commands:
 
 
@@ -48,10 +50,12 @@ Build the RPM in the AppVM where you checked out this repo:
 just rpm
 ```
 
-Then, copy the package to dom0:
+This produces a single universal `noarch` RPM (pure Python source plus a
+launcher; runtime deps come from dom0), so the same package installs on any
+Qubes/Fedora version. Copy it to dom0:
 
 ```
-qvm-run --pass-io work '/home/user/hexagon/rpm-build/RPMS/noarch/hexagon-0.1.4-1.fc37.noarch.rpm' > /tmp/hexagon.rpm
+qvm-run --pass-io work '/home/user/hexagon/rpm-build/RPMS/noarch/hexagon-0.1.4-1.noarch.rpm' > /tmp/hexagon.rpm
 sudo dnf install -y /tmp/hexagon.rpm
 ```
 
@@ -130,15 +134,19 @@ Note that you may need to set `HEXAGON_DEV_VM` and `HEXAGON_DEV_DIR` as env vars
 depending on your setup.
 
 ## Reproducible builds
-The RPM build process is reproducible. You can use the `make reprotest` target to verify.
-There's one odd assumption, which is that you're building in a Debian Stable AppVM.
-It was simply easier to wire up the requisite logic under Debian than F32, but the build
-process really should support Fedora properly. To build:
+The RPM is built by a Nix derivation (`nix build .#rpm`, which is what `just rpm`
+invokes), so the output is byte-for-byte reproducible by construction: the same
+source revision always yields an identical `noarch` RPM. Verify by building twice
+and comparing checksums:
 
 ```
-make install-deps
-make rpm
-make reprotest
+just rpm && sha256sum rpm-build/RPMS/noarch/*.rpm
+just rpm && sha256sum rpm-build/RPMS/noarch/*.rpm
 ```
 
-Both Qubes 4.0 & 4.1-compatible RPM packages will be created. Install the one that's appropriate for your environment.
+A single universal `noarch` RPM is produced, suitable for every supported Qubes
+version.
+
+## License
+
+GPLv2, same as other Qubes tools.

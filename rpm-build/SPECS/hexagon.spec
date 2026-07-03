@@ -1,80 +1,75 @@
 %global srcname hexagon
 %global version 0.1.4
 
-# For reproducible builds
+# hexagon is pure Python. Its runtime deps (qubesadmin & friends) already live
+# in dom0, so there is nothing to compile or resolve at install time: we just
+# drop the source into a fixed libdir and put a launcher on PATH. Because the
+# payload is plain .py (never byte-compiled), it is Python-version-independent,
+# so a single noarch RPM serves every dom0 (Qubes 4.2/py3.11, 4.3/py3.13, ...).
+%global hexagon_libdir %{_prefix}/lib/%{srcname}
+
+# Reproducible builds: pin the build host and honor SOURCE_DATE_EPOCH.
 %global _buildhost hexagon
-%global _source_date_epoch %{getenv:SOURCE_DATE_EPOCH}
+%global source_date_epoch %{getenv:SOURCE_DATE_EPOCH}
+%define use_source_date_epoch_as_buildtime 1
 
-%global python3 /usr/bin/python3
-%define optflags -O2 -g
-
-# Override the detected sitelib, so that a version for dom0 is used.
-# Relies on build-time args passed in on CLI to rpm-build.
-%global python3_sitelib /usr/lib/python%{_target_python_version}/site-packages
-
-# Prevent rpm-build from adding an implicit dependency on Python ABI,
-# that's tied to a specific Python version.
+# There are no compiled artifacts and no per-version site-packages, so suppress
+# the implicit Python-ABI dependency and byte-compilation entirely.
 %undefine __python_requires
+%undefine py_auto_byte_compile
 
 Name:		%{srcname}
 Version:	%{version}
-# The "dist" var is mandatory, and passed in at build time.
-# We use it to force a specific Fedora version, suitable for dom0.
-Release:	1%{?dist}
+Release:	1
 Summary:	Alternative CLI for managing Qubes OS VMs
 
 Group:		Library
-License:	GPLv3+
+License:	GPL-3.0-or-later
 URL:		https://github.com/conorsch/hexagon
 Source0:	%{srcname}-%{version}.tar.gz
 
-BuildArch:      noarch
-BuildRequires:	python%{_target_python_version}-devel
-BuildRequires:	python3-pip
+BuildArch:	noarch
 
-# This package installs all standard VMs in Qubes
-Requires:   python3-qubesadmin, qubes-core-admin-client
+# Provided by dom0; hexagon merely imports them at runtime.
+Requires:	python3-qubesadmin, qubes-core-admin-client
 
 %description
-
 This package contains a Python3 library and "hexagon" CLI
 program to aid in managing QubesOS VMs.
 
-# Don't build .pyc files
-%undefine py_auto_byte_compile
-
-# Ensure that SOURCE_DATE_EPOCH is honored
-%define use_source_date_epoch_as_buildtime 1
-
 %prep
-echo "The pythonversions i can see in prep are: "
-echo "%{_target_python_version}"
 %setup -q -n %{name}-%{version}
 
 %install
-%{python3} -m pip install --no-compile --no-index --no-build-isolation --root %{buildroot} .
+# Ship the package source verbatim into a version-independent libdir...
+install -d -m 0755 %{buildroot}%{hexagon_libdir}/%{srcname}
+install -m 0644 %{srcname}/*.py %{buildroot}%{hexagon_libdir}/%{srcname}/
 
-%if "%{python3_version}" != "%{_target_python_version}"
-# Move sitelib built by host Fedora's pip to match expectations for target Python version in dom0.
-# This is safe because there are no pip dependencies, only raw source files for hexagon.
-# We only do this if the target python version and the build host's python version don't match.
-mv %{buildroot}/usr/lib/python%{python3_version} %{buildroot}/usr/lib/python%{_target_python_version}
-%endif
+# ...and a launcher on PATH that runs it against dom0's system Python.
+install -d -m 0755 %{buildroot}%{_bindir}
+cat > %{buildroot}%{_bindir}/%{srcname} <<EOF
+#!/usr/bin/python3
+import sys
 
-# prune direct_url.json content, because it varies per-build, and breaks reproducibility.
-rm %{buildroot}/%{python3_sitelib}/%{srcname}-%{version}.dist-info/direct_url.json
-sed -i "/\.dist-info\/direct_url\.json,/d" %{buildroot}/%{python3_sitelib}/%{srcname}-%{version}.dist-info/RECORD
-find %{buildroot} -exec touch -m -d @%{_source_date_epoch} {} +
+sys.path.insert(0, "%{hexagon_libdir}")
+from hexagon.cli import main
+
+main()
+EOF
+chmod 0755 %{buildroot}%{_bindir}/%{srcname}
+
+# Normalize mtimes for reproducibility.
+find %{buildroot} -exec touch -m -d @%{source_date_epoch} {} +
 
 %files
-%{python3_sitelib}/%{srcname}/*.py
-%{python3_sitelib}/*%{version}.dist-info/*
+%{hexagon_libdir}/%{srcname}/*.py
 %{_bindir}/%{srcname}
 
-%post
-echo "DEBUG: finished installing hexagon rpm"
-
 %changelog
+* Thu Jul 2 2026 Conor Schaefer <conor@ruin.dev> - 0.1.4
+- Build a single universal noarch RPM (no pip, no per-Fedora variants)
+- Install source to /usr/lib/hexagon with a thin /usr/bin/hexagon launcher
+
 * Tue Dec 9 2025 Conor Schaefer <conor@ruin.dev> - 0.1.4
 - Update docs and defaults for Qubes 4.2
 - Move script back /usr/bin/local/hexagon -> /usr/bin/hexagon
