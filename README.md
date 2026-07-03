@@ -149,4 +149,4 @@ version.
 
 ## License
 
-GPLv2, same as other Qubes tools.
+GPLv2 (`GPL-2.0-only`), same as other Qubes tools. See [`LICENSE`](LICENSE).

@@ -126,7 +126,7 @@
 
           meta = {
             description = "Hexagon CLI RPM(s) for Qubes OS dom0";
-            license = pkgs.lib.licenses.gpl3Plus;
+            license = pkgs.lib.licenses.gpl2Only;
           };
         };
 

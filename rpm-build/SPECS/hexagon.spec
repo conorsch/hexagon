@@ -24,7 +24,7 @@ Release:	1
 Summary:	Alternative CLI for managing Qubes OS VMs
 
 Group:		Library
-License:	GPL-3.0-or-later
+License:	GPL-2.0-only
 URL:		https://github.com/conorsch/hexagon
 Source0:	%{srcname}-%{version}.tar.gz
 
