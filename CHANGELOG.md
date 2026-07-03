@@ -1,5 +1,11 @@
 # hexagon changelog
 
+## 0.2.0, 2026-07-03
+
+- test: add integration testing via Qubes Admin API
+- meta: set license to GPLv2 everywhere
+- build: unify RPM builds under nix devshell
+
 ## 0.1.4
 - Update docs and defaults for Qubes 4.2
 - Move script back /usr/local/bin/hexagon -> /usr/bin/hexagon

@@ -55,7 +55,7 @@ launcher; runtime deps come from dom0), so the same package installs on any
 Qubes/Fedora version. Copy it to dom0:
 
 ```
-qvm-run --pass-io work '/home/user/hexagon/rpm-build/RPMS/noarch/hexagon-0.1.4-1.noarch.rpm' > /tmp/hexagon.rpm
+qvm-run --pass-io work '/home/user/hexagon/rpm-build/RPMS/noarch/hexagon-0.2.0-1.noarch.rpm' > /tmp/hexagon.rpm
 sudo dnf install -y /tmp/hexagon.rpm
 ```
 

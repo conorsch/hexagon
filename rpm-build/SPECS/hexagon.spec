@@ -1,5 +1,5 @@
 %global srcname hexagon
-%global version 0.1.4
+%global version 0.2.0
 
 # hexagon is pure Python. Its runtime deps (qubesadmin & friends) already live
 # in dom0, so there is nothing to compile or resolve at install time: we just
