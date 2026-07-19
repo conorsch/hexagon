@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "hexagon"
-version = "0.2.1-alpha.1"
+version = "0.2.1-alpha.2"
 description = "Experimental CLI for managing Qubes OS VMs"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -35,8 +35,10 @@ testpaths = ["tests"]
 markers = [
     "unit: pure-logic tests, no Qubes required",
     "integration: requires a live Qubes Admin API (dom0 or a management AppVM)",
+    "packaging: inspects built artifacts (RPM, wheel, nix); needs the relevant tooling on PATH",
 ]
 addopts = "-ra"
 
 [project.scripts]
+hexagon = "hexagon.cli:main"
 qvm-reboot = "hexagon.cli:qvm_reboot_main"

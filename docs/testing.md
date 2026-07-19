@@ -1,10 +1,11 @@
 # Testing hexagon
 
-The suite has two tiers, separated by pytest marker:
+The suite has three tiers, separated by pytest marker:
 
 | Tier | Marker | Needs Qubes? | Where it runs | Command |
 |------|--------|--------------|---------------|---------|
 | Unit | `unit` | No | Anywhere (Nix dev shell, CI) | `just test` |
+| Packaging | `packaging` | No | Nix dev shell (needs `just`, `rpm`, `nix`, `python -m build`) | `just test-packaging` |
 | Integration | `integration` | Yes (live Admin API) | dom0 **or** a management AppVM | `just test-integration` |
 
 ## Unit tests
@@ -17,6 +18,21 @@ dev shell's Python:
 ```
 just test          # pytest -m unit
 ```
+
+## Packaging tests
+
+Each install target (RPM, wheel, nix) must put both `hexagon` and `qvm-reboot`
+on PATH. The spec, `pyproject.toml`, and `flake.nix` declare them in different
+ways, so a regression in any one (e.g. a missing launcher in the RPM spec)
+silently breaks that install target. These tests catch that by building each
+artifact and inspecting its payload.
+
+```
+just test-packaging          # nix develop -c pytest -m packaging
+```
+
+Each test is skipped if its tooling isn't on PATH, so the suite degrades
+gracefully outside the Nix dev shell.
 
 ## Integration tests
 

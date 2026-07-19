@@ -12,10 +12,36 @@ import qubesadmin
 from .qmgr import HexagonQube
 
 
-try:
-    VERSION = _pkg_version("hexagon")
-except PackageNotFoundError:  # running from a source checkout, not installed
-    VERSION = "0.0.0+unknown"
+def _resolve_version():
+    # Prefer the version baked in at build time (see flake.nix); the noarch
+    # RPM ships bare .py files without dist-info, so importlib.metadata can't
+    # see it. Fall back through dist-info, then a source checkout's
+    # pyproject.toml, before giving up.
+    try:
+        from hexagon._version import VERSION
+
+        return VERSION
+    except ImportError:
+        pass
+
+    try:
+        return _pkg_version("hexagon")
+    except PackageNotFoundError:
+        pass
+
+    import tomllib
+
+    here = os.path.dirname(os.path.abspath(__file__))
+    try:
+        with open(os.path.join(here, "..", "pyproject.toml"), "rb") as f:
+            return tomllib.load(f)["project"]["version"]
+    except (FileNotFoundError, KeyError, tomllib.TOMLDecodeError):
+        pass
+
+    return "0.0.0+unknown"
+
+
+VERSION = _resolve_version()
 
 
 logfmt = "%(asctime)s %(levelname)-8s %(funcName)s() %(message)s"

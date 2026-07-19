@@ -99,6 +99,12 @@
             topdir="$TMPDIR/rpm-build"
             mkdir -p dist "$topdir"/{SOURCES,SPECS,BUILD,RPMS,tmp}
 
+            # Bake the version string into a generated module so the runtime
+            # can read it without dist-info (the noarch RPM ships bare .py).
+            # The build runs in an isolated Nix store path, so this does not
+            # pollute the user's checkout.
+            echo "VERSION = \"${version}\"" > hexagon/_version.py
+
             # PEP 517 sdist; --no-isolation uses the env's setuptools (offline).
             python3 -m build --sdist --no-isolation
 
@@ -134,6 +140,49 @@
           };
         };
 
+        # Nix package installable via `nix profile install .#hexagon` or
+        # `nix run .#hexagon`. Uses buildPythonApplication so [project.scripts]
+        # in pyproject.toml generates both `hexagon` and `qvm-reboot` console
+        # entry points on PATH automatically.
+        #
+        # qubesadmin is NOT declared as a dependency here. It is not in nixpkgs
+        # and is only useful in dom0 (where it ships via RPM as
+        # python3-qubesadmin to the system Python, not the nix interpreter).
+        # The package will build fine but hexagon will error at runtime with
+        # ModuleNotFoundError if qubesadmin is not on PYTHONPATH.
+        packages.hexagon = pkgs.python313.pkgs.buildPythonApplication {
+          pname = "hexagon";
+          inherit version;
+          pyproject = true;
+
+          src = ./.;
+
+          nativeBuildInputs = [
+            pkgs.python313.pkgs.build
+            pkgs.python313.pkgs.setuptools
+          ];
+
+          propagatedBuildInputs = [
+            pkgs.python313.pkgs.pyyaml
+          ];
+
+          # Bake the version string for runtime introspection (same as the RPM
+          # build does in its buildPhase).
+          preConfigure = ''
+            echo "VERSION = \"${version}\"" > hexagon/_version.py
+          '';
+
+          # Tests need a live Qubes Admin API; run them via `just test`.
+          doCheck = false;
+
+          meta = with pkgs.lib; {
+            description = "Alternative CLI for managing Qubes OS VMs";
+            license = licenses.gpl2Only;
+            mainProgram = "hexagon";
+            homepage = "https://github.com/conorsch/hexagon";
+          };
+        };
+
         # Add container output
         packages.container = pkgs.dockerTools.buildImage {
           name = "hexagon";
@@ -155,5 +204,16 @@
 
         # Make the container the default package
         packages.default = self.packages.${system}.container;
+
+        # Expose both CLIs as flake apps so `nix run .#hexagon` and
+        # `nix run .#qvm-reboot` work without a profile install.
+        apps.hexagon = {
+          type = "app";
+          program = "${self.packages.${system}.hexagon}/bin/hexagon";
+        };
+        apps.qvm-reboot = {
+          type = "app";
+          program = "${self.packages.${system}.hexagon}/bin/qvm-reboot";
+        };
       });
 }

@@ -2,6 +2,7 @@
 build/
 dist/
 hexagon.egg-info/
+hexagon/_version.py
 rpm-build/*
 !rpm-build/SPECS/
 

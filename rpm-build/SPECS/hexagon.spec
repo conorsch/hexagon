@@ -44,8 +44,9 @@ program to aid in managing QubesOS VMs.
 install -d -m 0755 %{buildroot}%{hexagon_libdir}/%{srcname}
 install -m 0644 %{srcname}/*.py %{buildroot}%{hexagon_libdir}/%{srcname}/
 
-# ...and a launcher on PATH that runs it against dom0's system Python.
+# ...and launchers on PATH that run it against dom0's system Python.
 install -d -m 0755 %{buildroot}%{_bindir}
+
 cat > %{buildroot}%{_bindir}/%{srcname} <<EOF
 #!/usr/bin/python3
 import sys
@@ -57,14 +58,31 @@ main()
 EOF
 chmod 0755 %{buildroot}%{_bindir}/%{srcname}
 
+# qvm-reboot is a thin wrapper that execs "hexagon reboot" for qvm-* parity.
+cat > %{buildroot}%{_bindir}/qvm-reboot <<EOF
+#!/usr/bin/python3
+import sys
+
+sys.path.insert(0, "%{hexagon_libdir}")
+from hexagon.cli import qvm_reboot_main
+
+qvm_reboot_main()
+EOF
+chmod 0755 %{buildroot}%{_bindir}/qvm-reboot
+
 # Normalize mtimes for reproducibility.
 find %{buildroot} -exec touch -m -d @%{source_date_epoch} {} +
 
 %files
 %{hexagon_libdir}/%{srcname}/*.py
 %{_bindir}/%{srcname}
+%{_bindir}/qvm-reboot
 
 %changelog
+* Sun Jul 19 2026 Conor Schaefer <conor@ruin.dev> - 0.2.1-alpha.1
+- Install qvm-reboot launcher alongside hexagon
+- Bake version string into _version.py so --version works without dist-info
+
 * Thu Jul 2 2026 Conor Schaefer <conor@ruin.dev> - 0.1.4
 - Build a single universal noarch RPM (no pip, no per-Fedora variants)
 - Install source to /usr/lib/hexagon with a thin /usr/bin/hexagon launcher

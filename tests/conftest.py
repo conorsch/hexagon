@@ -1,11 +1,15 @@
 """pytest configuration for the hexagon test suite.
 
-Two tiers of tests, separated by marker:
+Three tiers of tests, separated by marker:
 
   * ``unit``        - pure logic, no Qubes. Runs anywhere (Nix dev shell, CI).
-                      ``qubesadmin`` is stubbed if it isn't installed, and the
-                      ``fake_qubes`` fixture patches ``qubesadmin.Qubes`` with an
-                      in-memory app so the real application code can be exercised.
+                      ``qubesadmin`` and ``yaml`` are stubbed if they aren't
+                      installed, and the ``fake_qubes`` fixture patches
+                      ``qubesadmin.Qubes`` with an in-memory app so the real
+                      application code can be exercised.
+  * ``packaging``   - inspects built artifacts (RPM, wheel, nix) to verify both
+                      console scripts land on PATH in every install target.
+                      Skipped per-test if the relevant tooling isn't on PATH.
   * ``integration`` - drives the live Qubes Admin API. Works from dom0 *or* from
                       a management AppVM granted access via qrexec policy (the
                       ``qubesadmin.Qubes()`` factory auto-selects the socket vs.
@@ -23,18 +27,20 @@ import types
 import pytest
 
 # --------------------------------------------------------------------------- #
-# Unit-test support: make `import qubesadmin` succeed without Qubes installed.
-# Done at import time so it's in place before test modules (and tests/base.py,
-# which imports the app) are collected. A real qubesadmin always wins.
+# Unit-test support: stub optional deps that aren't installed. Done at import
+# time so it's in place before test modules (and tests/base.py, which imports
+# the app) are collected. A real install always wins.
 # --------------------------------------------------------------------------- #
-if "qubesadmin" not in sys.modules:
-    try:
-        import qubesadmin  # noqa: F401
-    except ImportError:
-        _stub = types.ModuleType("qubesadmin")
-        _stub.Qubes = None  # replaced per-test by the fake_qubes fixture
-        _stub.__doc__ = "Test stub injected by tests/conftest.py (qubesadmin absent)."
-        sys.modules["qubesadmin"] = _stub
+for _mod in ("qubesadmin", "yaml"):
+    if _mod not in sys.modules:
+        try:
+            __import__(_mod)
+        except ImportError:
+            _stub = types.ModuleType(_mod)
+            if _mod == "qubesadmin":
+                _stub.Qubes = None  # replaced per-test by the fake_qubes fixture
+            _stub.__doc__ = "Test stub injected by tests/conftest.py ({} absent).".format(_mod)
+            sys.modules[_mod] = _stub
 
 
 INTEGRATION_ENV = "HEXAGON_INTEGRATION"

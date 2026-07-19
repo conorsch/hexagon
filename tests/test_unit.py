@@ -9,6 +9,7 @@ import types
 import pytest
 
 from hexagon import qmgr
+from hexagon import cli
 
 pytestmark = pytest.mark.unit
 
@@ -72,3 +73,37 @@ def test_existing_vm_config_not_clobbered(fake_qubes):
     vm = qmgr.HexagonQube(name)
     # Existing VMs keep their config; desired_config only holds explicit overrides.
     assert vm.desired_config == {}
+
+
+def test_qvm_reboot_main_execs_hexagon_reboot(monkeypatch):
+    # qvm_reboot_main() is a thin wrapper that execs "hexagon reboot <args>".
+    # Verify it dispatches correctly: right binary, right subcommand, passthrough argv.
+    captured = {}
+
+    def fake_execvp(file, args):
+        captured["file"] = file
+        captured["args"] = args
+
+    monkeypatch.setattr(cli.os, "execvp", fake_execvp)
+    monkeypatch.setattr(cli.sys, "argv", ["qvm-reboot", "sys-net", "sys-firewall"])
+
+    cli.qvm_reboot_main()
+
+    assert captured["file"] == "hexagon"
+    assert captured["args"] == ["hexagon", "reboot", "sys-net", "sys-firewall"]
+
+
+def test_qvm_reboot_main_passes_no_args(monkeypatch):
+    # With no extra argv, qvm-reboot should still inject "reboot".
+    captured = {}
+
+    def fake_execvp(file, args):
+        captured["file"] = file
+        captured["args"] = args
+
+    monkeypatch.setattr(cli.os, "execvp", fake_execvp)
+    monkeypatch.setattr(cli.sys, "argv", ["qvm-reboot"])
+
+    cli.qvm_reboot_main()
+
+    assert captured["args"] == ["hexagon", "reboot"]

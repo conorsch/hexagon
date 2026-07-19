@@ -2,6 +2,10 @@
 
 ## unreleased
 
+- feat(flake): add `packages.hexagon` nix output — `nix profile install .#hexagon` puts both `hexagon` and `qvm-reboot` on PATH; `nix run .#hexagon` and `nix run .#qvm-reboot` also work. qubesadmin is not bundled (install separately via RPM in dom0)
+- feat(pyproject): declare `hexagon` console script in `[project.scripts]` (previously only `qvm-reboot` was declared; `hexagon` was created only by the RPM spec)
+- fix(rpm): install `qvm-reboot` launcher (was declared as a pip entry point but never shipped in the noarch RPM)
+- fix: `hexagon --version` now reports the real version (was `0.0.0+unknown` when installed via RPM, since the noarch RPM ships no dist-info for `importlib.metadata` to read)
 - fix(build): support alpha version strings
 - feat: qvm-reboot cli shortcut
 

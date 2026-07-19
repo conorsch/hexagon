@@ -36,6 +36,11 @@ clone:
 test:
 	pytest -m unit -vv
 
+# run packaging tests (inspects built RPM, wheel, and nix artifacts)
+[group('dev')]
+test-packaging:
+	nix develop -c pytest -m packaging -vv
+
 # run integration tests against the live Qubes Admin API (dom0 or a management AppVM)
 [group('dom0')]
 test-integration:
