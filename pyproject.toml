@@ -37,3 +37,6 @@ markers = [
     "integration: requires a live Qubes Admin API (dom0 or a management AppVM)",
 ]
 addopts = "-ra"
+
+[project.scripts]
+qvm-reboot = "hexagon.cli:qvm_reboot_main"

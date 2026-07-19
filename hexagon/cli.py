@@ -291,3 +291,7 @@ def main():
     logging.debug("All VM {} operations finished, with {} errors".format(args.command, errors))
     if errors:
         sys.exit(1)
+
+
+def qvm_reboot_main():
+    os.execvp("hexagon", ["hexagon", "reboot"] + sys.argv[1:])
