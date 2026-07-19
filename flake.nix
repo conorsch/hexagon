@@ -101,18 +101,21 @@
 
             # PEP 517 sdist; --no-isolation uses the env's setuptools (offline).
             python3 -m build --sdist --no-isolation
-            cp dist/*.tar.gz "$topdir/SOURCES/"
+
+            # PEP 440 normalizes versions (e.g. 0.2.1-alpha.0 → 0.2.1a0).  RPM
+            # rejects dashes in Version:, so derive the rpm-safe version from the
+            # actual tarball name rather than the raw pyproject.toml string.
+            sdist=$(ls -1 dist/*.tar.gz | head -n1)
+            rpm_version=$(basename "$sdist" .tar.gz | sed 's/^hexagon-//')
+            cp "$sdist" "$topdir/SOURCES/"
             cp rpm-build/SPECS/hexagon.spec "$topdir/SPECS/"
 
-            # The spec ships pure source + a launcher (no pip, no site-packages),
-            # so one noarch RPM covers every dom0. Nothing here is Fedora- or
-            # Python-version-specific, hence no substituteInPlace or build loop.
             rpmbuild \
               --nodeps \
               --define "_topdir $topdir" \
               --define "_tmppath $topdir/tmp" \
               --define "_prefix /usr" \
-              --define "version ${version}" \
+              --define "version $rpm_version" \
               -bb --clean "$topdir/SPECS/hexagon.spec"
 
             runHook postBuild
