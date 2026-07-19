@@ -1,5 +1,10 @@
 # hexagon changelog
 
+## unreleased
+
+- fix(build): support alpha version strings
+- feat: qvm-reboot cli shortcut
+
 ## 0.2.0, 2026-07-03
 
 - test: add integration testing via Qubes Admin API
