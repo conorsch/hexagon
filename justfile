@@ -14,8 +14,6 @@ fmt:
 [group('build')]
 bump version:
 	sed -i 's/^version = .*/version = "{{version}}"/' pyproject.toml
-	sed -i 's/^%global version .*/%global version {{version}}/' rpm-build/SPECS/hexagon.spec
-	sed -i 's/hexagon-[0-9.]\+-1\.noarch\.rpm/hexagon-{{version}}-1.noarch.rpm/' README.md
 	@echo "Bumped to {{version}}. Next: add a %changelog entry in rpm-build/SPECS/hexagon.spec, then:"
 	@echo "    git tag -a -s {{version}} -m 'hexagon {{version}}'"
 
@@ -24,6 +22,7 @@ bump version:
 rpm:
 	nix build .#rpm
 	mkdir -p rpm-build/RPMS/noarch
+	rm -f rpm-build/RPMS/noarch/*.rpm
 	install -m 0644 result/*.rpm rpm-build/RPMS/noarch/
 	@printf '\nBuilt: '; sha256sum rpm-build/RPMS/noarch/*.rpm
 

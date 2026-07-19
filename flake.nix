@@ -112,6 +112,7 @@
               --define "_topdir $topdir" \
               --define "_tmppath $topdir/tmp" \
               --define "_prefix /usr" \
+              --define "version ${version}" \
               -bb --clean "$topdir/SPECS/hexagon.spec"
 
             runHook postBuild
