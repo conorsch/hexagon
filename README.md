@@ -35,7 +35,31 @@ hexagon update fedora-34
 
 # Upgrade packages for all VMs with pending updates
 hexagon update
+
+# Print the dom0 qrexec policy for a Qubes 4.3 Ansible ManagementVM
+hexagon policy --mgmtvm fleet
 ```
+
+### Ansible ManagementVM policy
+
+`hexagon policy` renders the dom0 qrexec policy that lets a management qube
+drive [Qubes 4.3 Ansible](https://github.com/QubesOS/qubes-ansible) (the
+`qubesos.core` / `qubesos.security` collections). It's pure text generation —
+no Admin API — so it runs in any AppVM; review the output, then apply it in
+dom0:
+
+```
+qvm-run -p fleet 'hexagon policy --mgmtvm fleet' \
+  | sudo tee /etc/qubes/policy.d/30-mgmtvm.policy
+qubes-policy-lint /etc/qubes/policy.d/30-mgmtvm.policy
+```
+
+Every grant is sourced from the named MgmtVM; full management is scoped to
+qubes tagged `created-by-<mgmtvm>`. Override the base templates and sys-VMs to
+match your install with repeatable `--template` / `--sys-vm` flags (and
+`--mgmt-dispvm` for a non-default management DispVM). Provisioning (qube
+lifecycle) stays with hexagon's other verbs; Ansible only enforces config
+*inside* qubes.
 
 ## Installation
 In order to use the tool, you must build the RPM in an AppVM,

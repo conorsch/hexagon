@@ -4,7 +4,23 @@ import subprocess
 import time
 
 
-import qubesadmin
+try:
+    import qubesadmin
+
+    _HAS_QUBESADMIN = True
+    _QUBESADMIN_ERR = None
+except ImportError as exc:
+    _HAS_QUBESADMIN = False
+    _QUBESADMIN_ERR = exc
+
+
+def _qubes():
+    if not _HAS_QUBESADMIN:
+        raise RuntimeError(
+            "qubesadmin is required but not installed. "
+            "Install it with: dnf install qubes-core-admin-client"
+        ) from _QUBESADMIN_ERR
+    return qubesadmin.Qubes()
 
 
 logfmt = "%(asctime)s %(levelname)-8s %(funcName)s() %(message)s"
@@ -37,7 +53,7 @@ class HexagonQube(object):
         self.name = name
         # Don't clobber existing VM config unless explicitly requested
         if self.exists():
-            self.vm = qubesadmin.Qubes().domains[self.name]
+            self.vm = _qubes().domains[self.name]
             self.desired_config = {**kwargs}
         else:
             self.desired_config = {**CONFIG_DEFAULTS, **kwargs}
@@ -45,7 +61,7 @@ class HexagonQube(object):
         self.reboot_required = False
         self.rebuild_required = False
         new_template = self.desired_config.get("template", "")
-        if new_template and new_template not in qubesadmin.Qubes().domains:
+        if new_template and new_template not in _qubes().domains:
             msg = "Target TemplateVM does not exist: {}".format(new_template)
             raise Exception(msg)
 
@@ -54,11 +70,11 @@ class HexagonQube(object):
         return s
 
     def exists(self):
-        return self.name in qubesadmin.Qubes().domains
+        return self.name in _qubes().domains
 
     def create(self):
         if not self.exists():
-            self.vm = qubesadmin.Qubes().add_new_vm(
+            self.vm = _qubes().add_new_vm(
                 self.desired_config["klass"], self.name, self.desired_config["label"]
             )
 
@@ -186,7 +202,7 @@ class HexagonQube(object):
                 self.ensure_halted()
 
         # Finally, update the vm attribute was latest info
-        self.vm = qubesadmin.Qubes().domains[self.name]
+        self.vm = _qubes().domains[self.name]
 
     def changes_required(self):
         for k, v in self.desired_config.items():

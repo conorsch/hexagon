@@ -8,8 +8,17 @@ from importlib.metadata import PackageNotFoundError, version as _pkg_version
 import yaml
 
 
-import qubesadmin
+try:
+    import qubesadmin
+
+    _HAS_QUBESADMIN = True
+    _QUBESADMIN_ERR = None
+except ImportError as exc:
+    _HAS_QUBESADMIN = False
+    _QUBESADMIN_ERR = exc
+
 from .qmgr import HexagonQube
+from . import policy as policy_mod
 
 
 def _resolve_version():
@@ -147,12 +156,51 @@ def parse_args():
     start_parser.add_argument(
         "vms", nargs=argparse.ZERO_OR_MORE, action="store", help="VMs to start"
     )
+
+    policy_parser = subparsers.add_parser(
+        "policy",
+        help="Print the dom0 qrexec policy for a Qubes 4.3 Ansible ManagementVM",
+    )
+    policy_parser.add_argument(
+        "--mgmtvm",
+        default=policy_mod.DEFAULT_MGMTVM,
+        help="MgmtVM that runs ansible-playbook (source of every grant) [default: %(default)s]",
+    )
+    policy_parser.add_argument(
+        "--template",
+        dest="templates",
+        action="append",
+        default=[],
+        metavar="TEMPLATE",
+        help="Base template the MgmtVM may clone/read; repeatable [default: {}]".format(
+            " ".join(policy_mod.DEFAULT_TEMPLATES)
+        ),
+    )
+    policy_parser.add_argument(
+        "--sys-vm",
+        dest="sys_vms",
+        action="append",
+        default=[],
+        metavar="VM",
+        help="sys-* qube the qube module must read; repeatable [default: {}]".format(
+            " ".join(policy_mod.DEFAULT_SYS_VMS)
+        ),
+    )
+    policy_parser.add_argument(
+        "--mgmt-dispvm",
+        default=policy_mod.DEFAULT_MGMT_DISPVM,
+        help="Management DispVM template qubes_proxy derives targets from [default: %(default)s]",
+    )
+
     args = parser.parse_args()
 
     # Python 3.5 compatibility requires explicit check for subcommand;
     # later versions of argparse permit use of required=True.
     if not args.command:
-        msg = "subcommand required, choose one of {ls, reboot, start, shutdown, update, reconcile}"
+        msg = (
+            "subcommand required, choose one of "
+            "{ls, reboot, start, shutdown, update, reconcile, policy}"
+        )
         print(msg)
         sys.exit(1)
 
@@ -188,6 +236,28 @@ def reboot_vm(args, vm_name):
 
 def main():
     args = parse_args()
+
+    # `policy` is pure text generation -- no Admin API needed, so it runs in any
+    # AppVM (or dom0) without qrexec grants. Emit and exit before touching Qubes.
+    if args.command == "policy":
+        sys.stdout.write(
+            policy_mod.render_policy(
+                mgmtvm=args.mgmtvm,
+                templates=args.templates or None,
+                sys_vms=args.sys_vms or None,
+                mgmt_dispvm=args.mgmt_dispvm,
+            )
+        )
+        sys.exit(0)
+
+    if not _HAS_QUBESADMIN:
+        print(
+            "ERROR: qubesadmin is required but not installed. "
+            "Install it with: dnf install qubes-core-admin-client",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
     q = qubesadmin.Qubes()
     vms = args.vms
     # TODO: support --max-concurrency flag, defaulting to 4

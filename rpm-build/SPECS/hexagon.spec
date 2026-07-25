@@ -36,6 +36,10 @@ BuildArch:	noarch
 # package exists in the repos, but never blocks installation where it
 # doesn't. hexagon will error clearly at runtime if the module is missing.
 Recommends:	python3-qubesadmin
+# `hexagon policy` renders its template with Jinja2. dom0 already has it (Ansible
+# and qubesadmin both pull it in), so a soft dep suffices: installed where the
+# package exists, never blocking where hexagon's other verbs are all that's used.
+Recommends:	python3-jinja2
 
 %description
 This package contains a Python3 library and "hexagon" CLI

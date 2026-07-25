@@ -24,6 +24,7 @@
         # that's required at build time.
         pythonEnv = pkgs.python313.withPackages (ps: with ps; [
           build
+          jinja2 # `hexagon policy` renders its template with jinja2 (present in dom0 via Ansible)
           pip
           pytest
           pytest-testinfra
@@ -145,11 +146,11 @@
         # in pyproject.toml generates both `hexagon` and `qvm-reboot` console
         # entry points on PATH automatically.
         #
-        # qubesadmin is NOT declared as a dependency here. It is not in nixpkgs
-        # and is only useful in dom0 (where it ships via RPM as
-        # python3-qubesadmin to the system Python, not the nix interpreter).
-        # The package will build fine but hexagon will error at runtime with
-        # ModuleNotFoundError if qubesadmin is not on PYTHONPATH.
+        # qubesadmin is NOT declared as a dependency here because it is not in
+        # nixpkgs. It is available on Qubes OS via RPM (python3-qubesadmin in
+        # dom0, or dnf install qubes-core-admin-client in an AppVM). The
+        # package builds fine but hexagon will exit with a clear error at
+        # runtime if qubesadmin is not on PYTHONPATH.
         packages.hexagon = pkgs.python313.pkgs.buildPythonApplication {
           pname = "hexagon";
           inherit version;
@@ -163,6 +164,7 @@
           ];
 
           propagatedBuildInputs = [
+            pkgs.python313.pkgs.jinja2 # `hexagon policy` renders its template
             pkgs.python313.pkgs.pyyaml
           ];
 
