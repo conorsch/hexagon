@@ -185,7 +185,28 @@
           };
         };
 
-        # Add container output
+        # Standalone CLI package that symlinks both entry-point binaries into
+        # a single installable unit.  This is the default because it clearly
+        # signals "this gives you `hexagon` and `qvm-reboot` on PATH".
+        packages.hexagon-cli = pkgs.runCommand "hexagon-cli"
+          {
+            meta = with pkgs.lib; {
+              description = "Hexagon CLI tools (hexagon + qvm-reboot)";
+              license = licenses.gpl2Only;
+              mainProgram = "hexagon";
+            };
+          }
+          ''
+            mkdir -p $out/bin
+            ln -s ${self.packages.${system}.hexagon}/bin/hexagon $out/bin/hexagon
+            ln -s ${self.packages.${system}.hexagon}/bin/qvm-reboot $out/bin/qvm-reboot
+          '';
+
+        # Make the combined CLI package the default
+        packages.default = self.packages.${system}.hexagon-cli;
+
+        # Make the containerised toolchest available as an explicit target,
+        # but no longer the default.
         packages.container = pkgs.dockerTools.buildImage {
           name = "hexagon";
           tag = "latest";
@@ -204,18 +225,15 @@
           };
         };
 
-        # Make the container the default package
-        packages.default = self.packages.${system}.container;
-
         # Expose both CLIs as flake apps so `nix run .#hexagon` and
         # `nix run .#qvm-reboot` work without a profile install.
         apps.hexagon = {
           type = "app";
-          program = "${self.packages.${system}.hexagon}/bin/hexagon";
+          program = "${self.packages.${system}.hexagon-cli}/bin/hexagon";
         };
         apps.qvm-reboot = {
           type = "app";
-          program = "${self.packages.${system}.hexagon}/bin/qvm-reboot";
+          program = "${self.packages.${system}.hexagon-cli}/bin/qvm-reboot";
         };
       });
 }

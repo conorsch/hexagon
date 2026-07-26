@@ -17,6 +17,11 @@ bump version:
 	@echo "Bumped to {{version}}. Next: add a %changelog entry in rpm-build/SPECS/hexagon.spec, then:"
 	@echo "    git tag -a -s {{version}} -m 'hexagon {{version}}'"
 
+# build the default nix package (hexagon + qvm-reboot CLIs)
+[group('build')]
+build:
+	nix build
+
 # build the dom0 RPM hermetically via Nix; artifact lands in rpm-build/RPMS/noarch/
 [group('build')]
 rpm:
