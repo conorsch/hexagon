@@ -2,15 +2,18 @@
 
 ## unreleased
 
-- fix(rpm): drop hard `Requires` on `qubes-core-admin-client` (not available in
-  dom0); soften `python3-qubesadmin` to `Recommends` so the same noarch RPM
-  installs in both dom0 and AppVMs
-- feat(flake): add `packages.hexagon` nix output — `nix profile install .#hexagon` puts both `hexagon` and `qvm-reboot` on PATH; `nix run .#hexagon` and `nix run .#qvm-reboot` also work. qubesadmin is not bundled (install separately via RPM in dom0)
-- feat(pyproject): declare `hexagon` console script in `[project.scripts]` (previously only `qvm-reboot` was declared; `hexagon` was created only by the RPM spec)
-- fix(rpm): install `qvm-reboot` launcher (was declared as a pip entry point but never shipped in the noarch RPM)
-- fix: `hexagon --version` now reports the real version (was `0.0.0+unknown` when installed via RPM, since the noarch RPM ships no dist-info for `importlib.metadata` to read)
-- fix(build): support alpha version strings
-- feat: qvm-reboot cli shortcut
+## 0.3.0, 2026-07-25
+
+- feat(cli): default `--mgmtvm` to the running machine's hostname (via `socket.gethostname()`)
+- feat(cli): add `hexagon policy` subcommand — renders dom0 qrexec policy for a ManagementVM via Jinja2 template; uses hostname as default source when no `--mgmtvm` given
+- build: resolve `qubesadmin` at install time so the same noarch RPM works in dom0 and AppVMs; also softens `qubes-core-admin-client` to `Recommends`
+- build: add `packages.hexagon` nix output — `nix profile install .#hexagon`, `nix run .#hexagon`, `nix run .#qvm-reboot` all work
+- feat(pyproject): declare `hexagon` console script in `[project.scripts]` (previously only `qvm-reboot`)
+- fix(rpm): ship `qvm-reboot` launcher (was a pip entry point but never installed by RPM)
+- fix: `hexagon --version` reports the real version (RPM shipped no dist-info for `importlib.metadata`)
+- fix(build): support alpha version strings; DRY version via pyproject
+- feat(qvm-reboot): add CLI shortcut to reboot qubes via hexagon
+- docs: add AGENTS.md
 
 ## 0.2.0, 2026-07-03
 

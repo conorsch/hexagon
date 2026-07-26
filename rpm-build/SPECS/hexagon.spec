@@ -88,6 +88,12 @@ find %{buildroot} -exec touch -m -d @%{source_date_epoch} {} +
 %{_bindir}/qvm-reboot
 
 %changelog
+* Mon Jul 21 2026 Conor Schaefer <conor@ruin.dev> - 0.3.0
+- Default --mgmtvm to running machine's hostname (socket.gethostname())
+- Add hexagon policy subcommand — renders dom0 qrexec policy for ManagementVM
+- Resolve qubesadmin at install time; softens qubes-core-admin-client dep
+- Add packages.hexagon flake output for nix profile install
+
 * Mon Jul 20 2026 Conor Schaefer <conor@ruin.dev> - 0.2.1-alpha.2
 - Drop hard Requires on qubes-core-admin-client (not available in dom0)
 - Soften python3-qubesadmin to Recommends so the same RPM installs in both
