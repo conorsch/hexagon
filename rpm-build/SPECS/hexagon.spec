@@ -88,6 +88,10 @@ find %{buildroot} -exec touch -m -d @%{source_date_epoch} {} +
 %{_bindir}/qvm-reboot
 
 %changelog
+* Sun Jul 26 2026 Conor Schaefer <conor@ruin.dev> - 0.3.1
+- fix: dom0 policy grants for admin vms
+- fix(build): remove unused follows declaration
+
 * Mon Jul 21 2026 Conor Schaefer <conor@ruin.dev> - 0.3.0
 - Default --mgmtvm to running machine's hostname (socket.gethostname())
 - Add hexagon policy subcommand — renders dom0 qrexec policy for ManagementVM

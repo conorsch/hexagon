@@ -13,9 +13,9 @@ fmt:
 # bump the project version everywhere it's declared (see docs/releasing.md)
 [group('build')]
 bump version:
-	sed -i 's/^version = .*/version = "{{version}}"/' pyproject.toml
-	@echo "Bumped to {{version}}. Next: add a %changelog entry in rpm-build/SPECS/hexagon.spec, then:"
-	@echo "    git tag -a -s {{version}} -m 'hexagon {{version}}'"
+  sed -i 's/^version = .*/version = "{{version}}"/' pyproject.toml
+  opencode run --auto "add a %changelog entry in @rpm-build/SPECS/hexagon.spec"
+  @echo "    git tag -a -s {{version}} -m 'hexagon {{version}}'"
 
 # build the default nix package (hexagon + qvm-reboot CLIs)
 [group('build')]
