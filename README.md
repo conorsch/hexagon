@@ -171,6 +171,18 @@ just rpm && sha256sum rpm-build/RPMS/noarch/*.rpm
 A single universal `noarch` RPM is produced, suitable for every supported Qubes
 version.
 
+## Testing and verification
+
+When making changes, ensure all the following pass:
+
+```
+just lint
+just test
+just build
+```
+
+Make sure to activate the nix devshell, as appropriate.
+
 ## License
 
 GPLv2 (`GPL-2.0-only`), same as other Qubes tools. See [`LICENSE`](LICENSE).
