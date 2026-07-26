@@ -37,7 +37,7 @@ hexagon update fedora-34
 hexagon update
 
 # Print the dom0 qrexec policy for a Qubes 4.3 Ansible ManagementVM
-hexagon policy --mgmtvm fleet
+hexagon policy
 ```
 
 ### Ansible ManagementVM policy
@@ -49,15 +49,29 @@ no Admin API — so it runs in any AppVM; review the output, then apply it in
 dom0:
 
 ```
-qvm-run -p fleet 'hexagon policy --mgmtvm fleet' \
+qvm-run -p fleet 'hexagon policy' \
   | sudo tee /etc/qubes/policy.d/30-mgmtvm.policy
 qubes-policy-lint /etc/qubes/policy.d/30-mgmtvm.policy
 ```
 
-Every grant is sourced from the named MgmtVM; full management is scoped to
-qubes tagged `created-by-<mgmtvm>`. Override the base templates and sys-VMs to
-match your install with repeatable `--template` / `--sys-vm` flags (and
-`--mgmt-dispvm` for a non-default management DispVM). Provisioning (qube
+The scheme is **tag-based**, so membership is a `qvm-tags` away:
+
+- **`@tag:hexagon-admin`** — qube(s) allowed to drive Ansible (grant source).
+  Enroll a MgmtVM with `qvm-tags <vm> add hexagon-admin`; untagging is the
+  fleet-wide kill-switch.
+- **`@tag:hexagon`** — managed qubes. Opt one in with
+  `qvm-tags <vm> add hexagon`; untag to exclude it. Management is never coupled
+  to concrete names or creation provenance. The **same tag permits cloning**: to
+  make a TemplateVM cloneable (for StandaloneVM / new-TemplateVM creation), just
+  `qvm-tags <template> add hexagon`.
+
+Rename either tag with `--admin-tag` / `--target-tag`. The one exception to the
+pure-tag model is the `qubes_proxy` `disp-mgmt-*` disposables: the
+`ansible.CreateManagementPolicies` RPC hard-checks `created-by-<calling-qube>`
+on them, so their lifecycle grants are keyed on `@tag:created-by-<admin>` — one
+block per `--admin-qube` (default: the local host). The unmanaged sys-VMs the
+`qube` module reads for netvm checks stay explicit (`--sys-vm`, repeatable);
+`--mgmt-dispvm` overrides a non-default management DispVM. Provisioning (qube
 lifecycle) stays with hexagon's other verbs; Ansible only enforces config
 *inside* qubes.
 

@@ -162,19 +162,23 @@ def parse_args():
         help="Print the dom0 qrexec policy for a Qubes 4.3 Ansible ManagementVM",
     )
     policy_parser.add_argument(
-        "--mgmtvm",
-        default=policy_mod.DEFAULT_MGMTVM,
-        help="MgmtVM that runs ansible-playbook (source of every grant) [default: %(default)s]",
+        "--admin-tag",
+        default=policy_mod.DEFAULT_ADMIN_TAG,
+        help="Tag on qube(s) allowed to drive Ansible (grant source) [default: %(default)s]",
     )
     policy_parser.add_argument(
-        "--template",
-        dest="templates",
+        "--target-tag",
+        default=policy_mod.DEFAULT_TARGET_TAG,
+        help="Tag on managed qubes (grant target) [default: %(default)s]",
+    )
+    policy_parser.add_argument(
+        "--admin-qube",
+        dest="admin_qubes",
         action="append",
         default=[],
-        metavar="TEMPLATE",
-        help="Base template the MgmtVM may clone/read; repeatable [default: {}]".format(
-            " ".join(policy_mod.DEFAULT_TEMPLATES)
-        ),
+        metavar="QUBE",
+        help="Admin qube name whose disp-mgmt VMs get created-by grants; "
+        "repeatable [default: {}]".format(" ".join(policy_mod.DEFAULT_ADMIN_QUBES)),
     )
     policy_parser.add_argument(
         "--sys-vm",
@@ -242,8 +246,9 @@ def main():
     if args.command == "policy":
         sys.stdout.write(
             policy_mod.render_policy(
-                mgmtvm=args.mgmtvm,
-                templates=args.templates or None,
+                admin_tag=args.admin_tag,
+                target_tag=args.target_tag,
+                admin_qubes=args.admin_qubes or None,
                 sys_vms=args.sys_vms or None,
                 mgmt_dispvm=args.mgmt_dispvm,
             )

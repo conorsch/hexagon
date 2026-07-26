@@ -12,26 +12,34 @@ whole grant set is readable top-to-bottom; rendering is pure -- no Qubes, no
 I/O -- so it works anywhere and is unit-tested offline. The ``hexagon policy``
 subcommand prints the result for review before it's applied in dom0.
 
-Security model (mirrors the upstream ``30-mgmtvm.policy``):
+Security model -- **tag-based**, so VMs opt in/out without touching the policy:
 
-  * Every grant is sourced from the concrete ManagementVM (``--mgmtvm``), never
-    a broad ``@anyvm`` -- removing/renaming that qube is the kill-switch.
-  * The MgmtVM may create qubes and *fully* manage only the ones it created,
-    scoped by the unforgeable ``created-by-<mgmtvm>`` tag Qubes stamps on them.
+  * **Source** of every grant is ``@tag:hexagon-admin`` -- the qube(s) running
+    Ansible. Untag a qube (``qvm-tags <vm> del hexagon-admin``) and all its
+    management power vanishes: the fleet-wide kill-switch.
+  * **Managed** VMs are scoped by ``@tag:hexagon``. Opt a VM in with
+    ``qvm-tags <vm> add hexagon``; remove the tag to exclude it. Management is
+    never coupled to creation provenance or concrete names.
   * ``qubes_proxy`` spins a disposable management VM per target so dom0 never
-    parses untrusted playbook data (QubesOS/qubes-issues#10030); the
-    ``qubes.AnsibleVM`` / ``qubes.Filecopy`` / dynamic-policy grants ride the
-    same ``created-by`` tag.
+    parses untrusted playbook data (QubesOS/qubes-issues#10030). Those
+    ``disp-mgmt-*`` VMs are the ONE exception to the pure-tag model: the
+    ``ansible.CreateManagementPolicies`` RPC hard-checks that they carry
+    ``created-by-<calling-qube>`` (a concrete name Qubes auto-stamps), so their
+    lifecycle grants are keyed on ``@tag:created-by-<admin>`` -- one admin qube
+    name per entry in ``admin_qubes`` (default: the local host).
 """
 
 import socket
 
-# Resolve the hostname at import time so `hexagon policy` prints a policy scoped
-# to **this** machine rather than some conventionally-named qube.
-DEFAULT_MGMTVM = socket.gethostname()
+# Tag defaults. Overridable from the CLI.
+DEFAULT_ADMIN_TAG = "hexagon-admin"
+DEFAULT_TARGET_TAG = "hexagon"
 DEFAULT_MGMT_DISPVM = "default-mgmt-dvm"
-DEFAULT_TEMPLATES = ["fedora-43-xfce", "debian-13-xfce"]
 DEFAULT_SYS_VMS = ["sys-net", "sys-firewall", "sys-usb"]
+
+# The admin qube(s) whose disp-mgmt VMs need created-by grants. Defaults to the
+# local host -- the common single-MgmtVM case. Multi-admin fleets pass more.
+DEFAULT_ADMIN_QUBES = [socket.gethostname()]
 
 # Column width for the service name in a rendered rule; the widest service we
 # emit is ``ansible.CreateManagementPolicies`` (32). The ``rule`` macro pads to
@@ -40,7 +48,8 @@ _SVC_W = 32
 
 # One editable source of truth for the whole policy. The ``rule`` macro renders
 # a single qrexec line (SERVICE ARG SOURCE TARGET ACTION), padding SERVICE/ARG
-# so columns align. ``created`` is the unforgeable created-by-<mgmtvm> tag.
+# so columns align. ``admin`` is @tag:hexagon-admin (source); ``target`` is
+# @tag:hexagon (managed VMs).
 POLICY_TEMPLATE = """\
 {%- macro rule(svc, source, target, action, arg='*') -%}
 {{ '%-*s'|format(svc_w, svc) }}  {{ '%-17s'|format(arg) }}  {{ source }}  {{ target }}  {{ action }}
@@ -50,58 +59,107 @@ POLICY_TEMPLATE = """\
 #     sudo tee /etc/qubes/policy.d/30-mgmtvm.policy < this-output
 #     qubes-policy-lint /etc/qubes/policy.d/30-mgmtvm.policy
 #
-# Source of every grant: {{ mgmtvm }} (rename/remove the qube to revoke).
-# Full management is scoped to qubes tagged created-by-{{ mgmtvm }}.
+# Tag-based, so membership is a `qvm-tags` away:
+#   - SOURCE of every grant: {{ admin }}
+#       enroll a MgmtVM:  qvm-tags <vm> add {{ admin_tag }}   (untag = kill-switch)
+#   - MANAGED VMs:           {{ target }}
+#       opt a VM in:      qvm-tags <vm> add {{ target_tag }}  (untag = exclude)
 #
 # Columns:  SERVICE  ARGUMENT  SOURCE  TARGET  ACTION [params]
 
-# --- Qube lifecycle: create any, manage only self-created ---
-{{ rule('admin.vm.Create.AppVM', mgmtvm, 'dom0', 'allow') -}}
-{{ rule('admin.vm.Create.StandaloneVM', mgmtvm, 'dom0', 'allow') -}}
-{{ rule('admin.vm.Create.TemplateVM', mgmtvm, 'dom0', 'allow') -}}
-{{ rule('admin.vm.Remove', mgmtvm, created, 'allow target=dom0') }}
-# --- Clone base templates (StandaloneVM / new TemplateVM creation) ---
-{% for tmpl in templates -%}
-{{ rule('admin.vm.volume.CloneFrom', mgmtvm, tmpl, 'allow target=dom0') -}}
-{% endfor %}
-
+# --- Visibility: list + read managed qubes. admin.vm.List needs TWO rules: the
+#     call is directed at dom0 (@adminvm), and qubesd then filters the returned
+#     list PER-VM, so a rule matching each managed VM is also required or
+#     `app.domains.get(<host>)` returns None ("Host not found").
+{{ rule('admin.vm.List', admin, '@adminvm', 'allow target=dom0') -}}
+{{ rule('admin.vm.List', admin, target, 'allow target=dom0') -}}
+{{ rule('admin.vm.CurrentState', admin, target, 'allow target=dom0') -}}
+{{ rule('admin.vm.property.Get', admin, target, 'allow target=dom0') -}}
+{{ rule('admin.vm.property.List', admin, target, 'allow target=dom0') -}}
+{{ rule('admin.vm.feature.Get', admin, target, 'allow target=dom0') -}}
+{{ rule('admin.vm.tag.Get', admin, target, 'allow target=dom0') -}}
+{{ rule('admin.vm.tag.List', admin, target, 'allow target=dom0') }}
+# --- Qube lifecycle: create any, manage only @tag:{{ target_tag }} VMs ---
+{{ rule('admin.vm.Create.AppVM', admin, 'dom0', 'allow') -}}
+{{ rule('admin.vm.Create.StandaloneVM', admin, 'dom0', 'allow') -}}
+{{ rule('admin.vm.Create.TemplateVM', admin, 'dom0', 'allow') -}}
+{{ rule('admin.vm.Start', admin, target, 'allow target=dom0') -}}
+{{ rule('admin.vm.Shutdown', admin, target, 'allow target=dom0') -}}
+{{ rule('admin.vm.Kill', admin, target, 'allow target=dom0') -}}
+{{ rule('admin.vm.Remove', admin, target, 'allow target=dom0') -}}
+{{ rule('admin.vm.property.Set', admin, target, 'allow target=dom0') -}}
+{{ rule('admin.vm.feature.Set', admin, target, 'allow target=dom0') -}}
+{{ rule('admin.vm.tag.Set', admin, target, 'allow target=dom0') -}}
+{{ rule('admin.vm.tag.Remove', admin, target, 'allow target=dom0') }}
+# --- Clone base templates: tag any TemplateVM @tag:{{ target_tag }} to permit
+#     cloning it (StandaloneVM / new TemplateVM creation). No name list -- the
+#     managed tag doubles as the "cloneable source" tag. Reads on these are
+#     already granted by the visibility block above (same tag).
+{{ rule('admin.vm.volume.CloneFrom', admin, target, 'allow target=dom0') }}
 # --- Device enumeration + assignment (qubesos.core.host_devices_facts) ---
-{{ rule('admin.vm.device.pci.Available', mgmtvm, 'dom0', 'allow') -}}
-{{ rule('admin.vm.device.block.Available', mgmtvm, 'dom0', 'allow') -}}
-{{ rule('admin.vm.device.pci.Assign', mgmtvm, created, 'allow target=dom0') }}
-# --- Read the sys/template qubes the qube module inspects ---
-{% for vm in sys_vms + templates -%}
-{{ rule('admin.vm.property.Get', mgmtvm, vm, 'allow target=dom0') -}}
+{{ rule('admin.vm.device.pci.Available', admin, 'dom0', 'allow') -}}
+{{ rule('admin.vm.device.block.Available', admin, 'dom0', 'allow') -}}
+{{ rule('admin.vm.device.pci.Assign', admin, target, 'allow target=dom0') }}
+# --- Read the sys qubes the qube module inspects (netvm existence/provides-net
+#     checks). These aren't @tag:{{ target_tag }} (you don't manage sys-net), so
+#     they stay explicit. Managed VMs + templates are already readable via the
+#     visibility block. ---
+{% for vm in sys_vms -%}
+{{ rule('admin.vm.property.Get', admin, vm, 'allow target=dom0') -}}
 {% endfor %}
 
 # --- qubes_proxy: per-target disposable management VM (dom0 isolation) ---
-{{ rule('admin.vm.Create.DispVM', mgmtvm, 'dom0', 'allow', arg='+' ~ mgmt_dispvm) -}}
-{{ rule('admin.vm.property.Get', mgmtvm, mgmt_dispvm, 'allow target=dom0', arg='+label') -}}
-{{ rule('ansible.CreateManagementPolicies', mgmtvm, created, 'allow target=dom0') -}}
-{{ rule('ansible.RemoveManagementPolicies', mgmtvm, created, 'allow target=dom0') -}}
-{{ rule('qubes.AnsibleVM', mgmtvm, created, 'allow') -}}
-{{ rule('qubes.Filecopy', mgmtvm, created, 'allow') -}}
+# EVERY grant here targets the disp-mgmt-* disposable, NOT the managed VM: the
+# proxy creates/starts/kills the disposable, copies the play to it (Filecopy),
+# runs it there (AnsibleVM), and authors ephemeral disp-mgmt->target rules via
+# the CreateManagementPolicies RPC (whose ARGUMENT is the disposable). Those
+# disposables carry created-by-<calling-qube> (Qubes auto-stamps it; the RPC
+# hard-checks it), so all of this keys on each admin qube's created-by tag --
+# one block per admin. (The disp-mgmt->target VMShell/Filecopy grants are
+# written ephemerally by the RPC at runtime, so they are NOT emitted here.)
+{{ rule('admin.vm.Create.DispVM', admin, 'dom0', 'allow', arg='+' ~ mgmt_dispvm) -}}
+{{ rule('admin.vm.property.Get', admin, mgmt_dispvm, 'allow target=dom0', arg='+label') -}}
+{% for aq in admin_qubes %}
+{% set created = '@tag:created-by-' ~ aq -%}
+{{ rule('admin.vm.List', admin, created, 'allow target=dom0') -}}
+{{ rule('admin.vm.CurrentState', admin, created, 'allow target=dom0') -}}
+{{ rule('admin.vm.property.Get', admin, created, 'allow target=dom0') -}}
+{{ rule('admin.vm.property.Set', admin, created, 'allow target=dom0') -}}
+{{ rule('admin.vm.feature.Set', admin, created, 'allow target=dom0') -}}
+{{ rule('admin.vm.Start', admin, created, 'allow target=dom0') -}}
+{{ rule('admin.vm.Kill', admin, created, 'allow target=dom0') -}}
+{{ rule('admin.vm.Remove', admin, created, 'allow target=dom0') -}}
+{{ rule('ansible.CreateManagementPolicies', admin, target, 'allow target=dom0') -}}
+{{ rule('ansible.RemoveManagementPolicies', admin, target, 'allow target=dom0') -}}
+{{ rule('qubes.AnsibleVM', admin, created, 'allow') -}}
+{{ rule('qubes.Filecopy', admin, created, 'allow') -}}
+{% endfor -%}
 """
 
 
 def render_policy(
-    mgmtvm=DEFAULT_MGMTVM,
-    templates=None,
+    admin_tag=DEFAULT_ADMIN_TAG,
+    target_tag=DEFAULT_TARGET_TAG,
+    admin_qubes=None,
     sys_vms=None,
     mgmt_dispvm=DEFAULT_MGMT_DISPVM,
 ):
-    """Render ``/etc/qubes/policy.d/30-mgmtvm.policy`` for ``mgmtvm``.
+    """Render ``/etc/qubes/policy.d/30-mgmtvm.policy``.
 
-    :param mgmtvm: the qube running ``ansible-playbook`` (source of every grant).
-    :param templates: base templates the MgmtVM may clone / read (for
-        StandaloneVM/TemplateVM creation and netvm existence checks).
+    :param admin_tag: tag on qube(s) allowed to drive Ansible (grant SOURCE).
+    :param target_tag: tag on managed qubes (grant TARGET). Also the "cloneable
+        source" tag: tag a TemplateVM ``@tag:<target_tag>`` to permit cloning it.
+    :param admin_qubes: concrete admin qube names whose ``disp-mgmt-*`` VMs need
+        ``created-by-<name>`` grants (the qubes_proxy exception to pure tags).
+        Defaults to the local host.
     :param sys_vms: sys-* qubes whose properties the ``qube`` module must read
-        (e.g. verifying a netvm exists and provides network).
+        (e.g. verifying a netvm exists and provides network). These aren't
+        managed, so they can't ride the target tag and stay explicit.
     :param mgmt_dispvm: the management DispVM template ``qubes_proxy`` derives
         each target's disposable from.
     :returns: the policy file body, ready to write to dom0.
     """
-    templates = list(templates) if templates is not None else list(DEFAULT_TEMPLATES)
+    admin_qubes = list(admin_qubes) if admin_qubes is not None else list(DEFAULT_ADMIN_QUBES)
     sys_vms = list(sys_vms) if sys_vms is not None else list(DEFAULT_SYS_VMS)
 
     try:
@@ -116,10 +174,12 @@ def render_policy(
         POLICY_TEMPLATE, trim_blocks=True, lstrip_blocks=True, keep_trailing_newline=True
     )
     return template.render(
-        mgmtvm=mgmtvm,
-        templates=templates,
+        admin_tag=admin_tag,
+        target_tag=target_tag,
+        admin="@tag:{}".format(admin_tag),
+        target="@tag:{}".format(target_tag),
+        admin_qubes=admin_qubes,
         sys_vms=sys_vms,
         mgmt_dispvm=mgmt_dispvm,
-        created="@tag:created-by-{}".format(mgmtvm),
         svc_w=_SVC_W,
     )

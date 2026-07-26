@@ -2,6 +2,9 @@
 
 ## unreleased
 
+- fix: dom0 policy grants for admin vms
+- fix(build): remove unused follows declaration
+
 ## 0.3.0, 2026-07-25
 
 - feat(cli): default `--mgmtvm` to the running machine's hostname (via `socket.gethostname()`)
