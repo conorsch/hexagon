@@ -10,11 +10,12 @@ if [[ -z $pkg ]]; then
     exit 1
 fi
 
-echo "Installing ${pkg}..."
 # Disable "qubes-dom0-cached" repo to avoid problems with local rpm installation.
 # sudo dnf --disablerepo=qubes-dom0-cached install -y "$pkg"
 if rpm -qa hexagon > /dev/null 2>&1 ; then
+  echo "Reinstalling ${pkg}..."
   sudo dnf reinstall -y "$pkg"
 else
+  echo "Installing ${pkg}..."
   sudo dnf install -y "$pkg"
 fi
