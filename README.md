@@ -36,6 +36,9 @@ hexagon update fedora-34
 # Upgrade packages for all VMs with pending updates
 hexagon update
 
+# Shut down all VMs carrying a given tag (works on all VM subcommands)
+hexagon shutdown --tags foo
+
 # Print the dom0 qrexec policy for a Qubes 4.3 Ansible ManagementVM
 hexagon policy
 ```

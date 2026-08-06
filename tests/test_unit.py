@@ -75,6 +75,74 @@ def test_existing_vm_config_not_clobbered(fake_qubes):
     assert vm.desired_config == {}
 
 
+def test_tags_option_accepted_on_all_vm_subcommands(monkeypatch):
+    for cmd in ("ls", "reboot", "update", "reconcile", "shutdown", "start"):
+        monkeypatch.setattr(cli.sys, "argv", ["hexagon", cmd, "--tags", "foo"])
+        args = cli.parse_args()
+        assert args.tags == "foo", cmd
+
+
+class FakeDomains(dict):
+    """Mimic qubesadmin's domains collection: iteration yields VM objects,
+    membership and indexing are by name."""
+
+    def __iter__(self):
+        return iter(self.values())
+
+
+def _tagged_fake_domains(fake_qubes):
+    class FakeVM:
+        def __init__(self, name, tags):
+            self.name = name
+            self.tags = tags
+
+    fake_qubes.domains = FakeDomains(
+        {
+            "tagged-1": FakeVM("tagged-1", {"foo"}),
+            "tagged-2": FakeVM("tagged-2", {"foo"}),
+            "untagged": FakeVM("untagged", set()),
+        }
+    )
+
+
+def test_shutdown_selects_vms_by_tag(fake_qubes, monkeypatch, caplog):
+    caplog.set_level("DEBUG")
+    _tagged_fake_domains(fake_qubes)
+    monkeypatch.setattr(cli.sys, "argv", ["hexagon", "--dry-run", "shutdown", "--tags", "foo"])
+
+    with pytest.raises(SystemExit) as excinfo:
+        cli.main()
+
+    assert excinfo.value.code == 0
+    assert "tagged-1" in caplog.text
+    assert "tagged-2" in caplog.text
+    assert "untagged" not in caplog.text
+
+
+def test_tags_narrow_explicitly_named_vms(fake_qubes, monkeypatch, caplog):
+    caplog.set_level("DEBUG")
+    _tagged_fake_domains(fake_qubes)
+    argv = ["hexagon", "--dry-run", "shutdown", "--tags", "foo", "tagged-1", "untagged"]
+    monkeypatch.setattr(cli.sys, "argv", argv)
+
+    with pytest.raises(SystemExit) as excinfo:
+        cli.main()
+
+    assert excinfo.value.code == 0
+    assert "tagged-1" in caplog.text
+    assert "untagged" not in caplog.text
+
+
+def test_no_vms_matching_tag_errors(fake_qubes, monkeypatch):
+    _tagged_fake_domains(fake_qubes)
+    monkeypatch.setattr(cli.sys, "argv", ["hexagon", "shutdown", "--tags", "no-such-tag"])
+
+    with pytest.raises(SystemExit) as excinfo:
+        cli.main()
+
+    assert excinfo.value.code == 1
+
+
 def test_qvm_reboot_main_execs_hexagon_reboot(monkeypatch):
     # qvm_reboot_main() is a thin wrapper that execs "hexagon reboot <args>".
     # Verify it dispatches correctly: right binary, right subcommand, passthrough argv.

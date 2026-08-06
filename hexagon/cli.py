@@ -73,9 +73,14 @@ def parse_args():
     # subparsers = parser.add_subparsers(dest='command', required=True)
     subparsers = parser.add_subparsers(dest="command")
 
-    ls_parser = subparsers.add_parser("ls", help="ls VMs, by features or prefs")
-    ls_parser.add_argument("--tags", default="", action="store", help="select VMs by tag")
+    # Shared by all VM-targeting subcommands: select VMs by tag, instead of
+    # (or in addition to) naming them explicitly.
+    tags_parser = argparse.ArgumentParser(add_help=False)
+    tags_parser.add_argument("--tags", default="", action="store", help="select VMs by tag")
 
+    ls_parser = subparsers.add_parser(
+        "ls", parents=[tags_parser], help="ls VMs, by features or prefs"
+    )
     ls_parser.add_argument(
         "--template", default="", action="store", help="List only VMs based on specified TemplateVM"
     )
@@ -99,7 +104,7 @@ def parse_args():
         help="Filter by VM attribute, property, e.g. vcpus=2",
     )
     ls_parser.add_argument("vms", nargs=argparse.ZERO_OR_MORE, action="store", help="VMs to list")
-    reboot_parser = subparsers.add_parser("reboot", help="reboot VMs")
+    reboot_parser = subparsers.add_parser("reboot", parents=[tags_parser], help="reboot VMs")
     reboot_parser.add_argument(
         "vms", nargs=argparse.ZERO_OR_MORE, action="store", help="VMs to reboot"
     )
@@ -109,7 +114,9 @@ def parse_args():
         action="store_true",
         help="Reboot only VMs whose TemplateVMs have been recently updated",
     )
-    update_parser = subparsers.add_parser("update", help="update packages inside VM")
+    update_parser = subparsers.add_parser(
+        "update", parents=[tags_parser], help="update packages inside VM"
+    )
     update_parser.add_argument(
         "vms", nargs=argparse.ZERO_OR_MORE, action="store", help="VMs to update"
     )
@@ -123,7 +130,9 @@ def parse_args():
         type=int,
         help="How many VMs to update in parallel",
     )
-    reconcile_parser = subparsers.add_parser("reconcile", help="apply all VM config options")
+    reconcile_parser = subparsers.add_parser(
+        "reconcile", parents=[tags_parser], help="apply all VM config options"
+    )
 
     reconcile_parser.add_argument(
         "vms", nargs=argparse.ZERO_OR_MORE, action="store", help="VMs to reconcile"
@@ -147,12 +156,16 @@ def parse_args():
     )
 
     shutdown_parser = subparsers.add_parser(
-        "shutdown", help="Ensures specified VMs are halted (even if clients are connected)"
+        "shutdown",
+        parents=[tags_parser],
+        help="Ensures specified VMs are halted (even if clients are connected)",
     )
     shutdown_parser.add_argument(
         "vms", nargs=argparse.ZERO_OR_MORE, action="store", help="VMs to shutdown"
     )
-    start_parser = subparsers.add_parser("start", help="Ensures specified VMs are running")
+    start_parser = subparsers.add_parser(
+        "start", parents=[tags_parser], help="Ensures specified VMs are running"
+    )
     start_parser.add_argument(
         "vms", nargs=argparse.ZERO_OR_MORE, action="store", help="VMs to start"
     )
@@ -265,6 +278,15 @@ def main():
 
     q = qubesadmin.Qubes()
     vms = args.vms
+    # Tag selection: no names given -> target all tagged VMs; names given ->
+    # narrow them to the tagged subset. `ls` applies the same filter itself.
+    # TODO: support csv tags
+    if args.tags and args.command != "ls":
+        tagged = [x.name for x in q.domains if args.tags in x.tags]
+        vms = [v for v in vms if v in tagged] if vms else tagged
+        if not vms:
+            logging.error("No VMs matched tag: {}".format(args.tags))
+            sys.exit(1)
     # TODO: support --max-concurrency flag, defaulting to 4
     # for "update" behavior, but for e.g. ls it's ok to raise
     n_proc = len(vms) or 4
