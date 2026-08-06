@@ -17,6 +17,16 @@
         # `just bump <version>` keeps the two in sync; see docs/releasing.md.
         version = (builtins.fromTOML (builtins.readFile ./pyproject.toml)).project.version;
 
+        # RPM version, per the Fedora convention for Python pre-releases:
+        # PEP 440 forms (0.3.2a1) sort ABOVE the final release under rpmvercmp,
+        # so map them to tilde form (0.3.2~a1), which sorts below. Stable
+        # versions pass through unchanged. Only rpm metadata wears the tilde;
+        # derivation names and the sdist keep the PEP 440 form (`uv version`
+        # always writes it normalized, so the sdist name matches `version`).
+        rpmVersion =
+          let m = builtins.match "([0-9.]+)((a|b|rc)[0-9]+)" version;
+          in if m == null then version else "${builtins.elemAt m 0}~${builtins.elemAt m 1}";
+
         # Python environment for tests and building the RPM. Linting/formatting is
         # handled by the standalone `ruff` in `tooling`, not via this env. The dom0
         # RPM ships pure source (no compiled deps), so pip + setuptools are all
@@ -57,6 +67,7 @@
           ruff
           shellcheck
           sops
+          uv
           xz
           yamllint
           yq
@@ -108,20 +119,18 @@
             # PEP 517 sdist; --no-isolation uses the env's setuptools (offline).
             python3 -m build --sdist --no-isolation
 
-            # PEP 440 normalizes versions (e.g. 0.2.1-alpha.0 → 0.2.1a0).  RPM
-            # rejects dashes in Version:, so derive the rpm-safe version from the
-            # actual tarball name rather than the raw pyproject.toml string.
-            sdist=$(ls -1 dist/*.tar.gz | head -n1)
-            rpm_version=$(basename "$sdist" .tar.gz | sed 's/^hexagon-//')
-            cp "$sdist" "$topdir/SOURCES/"
+            cp dist/*.tar.gz "$topdir/SOURCES/"
             cp rpm-build/SPECS/hexagon.spec "$topdir/SPECS/"
 
+            # Version: gets the tilde'd rpm form; srcversion keeps the PEP 440
+            # form the sdist tarball is named with (see rpmVersion above).
             rpmbuild \
               --nodeps \
               --define "_topdir $topdir" \
               --define "_tmppath $topdir/tmp" \
               --define "_prefix /usr" \
-              --define "version $rpm_version" \
+              --define "version ${rpmVersion}" \
+              --define "srcversion ${version}" \
               -bb --clean "$topdir/SPECS/hexagon.spec"
 
             runHook postBuild

@@ -1,5 +1,11 @@
 %global srcname hexagon
 
+# The sdist tarball is named with the PEP 440 version (0.3.2a1), while
+# Version: carries the rpm tilde form (0.3.2~a1) so pre-releases sort below
+# the final release. The flake passes both; standalone builds that only
+# define version (a stable release) fall back to it.
+%{!?srcversion: %global srcversion %{version}}
+
 # hexagon is pure Python. Its runtime deps (qubesadmin & friends) already live
 # in dom0, so there is nothing to compile or resolve at install time: we just
 # drop the source into a fixed libdir and put a launcher on PATH. Because the
@@ -25,7 +31,7 @@ Summary:	Alternative CLI for managing Qubes OS VMs
 Group:		Library
 License:	GPL-2.0-only
 URL:		https://github.com/conorsch/hexagon
-Source0:	%{srcname}-%{version}.tar.gz
+Source0:	%{srcname}-%{srcversion}.tar.gz
 
 BuildArch:	noarch
 
@@ -46,7 +52,7 @@ This package contains a Python3 library and "hexagon" CLI
 program to aid in managing QubesOS VMs.
 
 %prep
-%setup -q -n %{name}-%{version}
+%setup -q -n %{name}-%{srcversion}
 
 %install
 # Ship the package source verbatim into a version-independent libdir...

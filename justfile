@@ -12,10 +12,20 @@ fmt:
 
 # bump the project version everywhere it's declared (see docs/releasing.md)
 [group('build')]
-bump version:
+version version:
   sed -i 's/^version = .*/version = "{{version}}"/' pyproject.toml
   opencode run --auto "add a %changelog entry in @rpm-build/SPECS/hexagon.spec"
   @echo "    git tag -a -s {{version}} -m 'hexagon {{version}}'"
+
+# bump to the next alpha pre-release (0.3.1 -> 0.3.2a1; 0.3.2a1 -> 0.3.2a2)
+[group('build')]
+bump:
+  uv version --frozen --bump alpha 2>/dev/null || uv version --frozen --bump patch --bump alpha
+
+# finalize the current pre-release (0.3.2a2 -> 0.3.2)
+[group('build')]
+bump-stable:
+  uv version --frozen --bump stable
 
 # build the default nix package (hexagon + qvm-reboot CLIs)
 [group('build')]
