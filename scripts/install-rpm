@@ -10,12 +10,23 @@ if [[ -z $pkg ]]; then
     exit 1
 fi
 
-# Disable "qubes-dom0-cached" repo to avoid problems with local rpm installation.
-# sudo dnf --disablerepo=qubes-dom0-cached install -y "$pkg"
-if rpm -qa hexagon > /dev/null 2>&1 ; then
-  echo "Reinstalling ${pkg}..."
-  sudo dnf reinstall -y "$pkg"
+# Full package identity (name-epoch:version-release, aka NEVR) of the local build.
+built_version="$(rpm -qp --qf '%{NAME}-%{EVR}' "$pkg")"
+
+if ! rpm -q hexagon > /dev/null 2>&1; then
+    # Fresh install: let dnf resolve dependencies.
+    echo "Installing ${built_version}..."
+    sudo dnf install -y "$pkg"
 else
-  echo "Installing ${pkg}..."
-  sudo dnf install -y "$pkg"
+    # Already installed: swap in the local build directly. Unlike dnf
+    # install/reinstall, this handles upgrade, same-version reinstall, and
+    # downgrade uniformly, and never touches repo metadata.
+    echo "Installing ${built_version} (replacing $(rpm -q --qf '%{NAME}-%{EVR}' hexagon))..."
+    sudo rpm -Uvh --replacepkgs --oldpackage "$pkg"
+fi
+
+installed_version="$(rpm -q --qf '%{NAME}-%{EVR}' hexagon)"
+if [[ $installed_version != "$built_version" ]]; then
+    echo "ERROR: expected ${built_version} installed, but found ${installed_version}" >&2
+    exit 1
 fi
