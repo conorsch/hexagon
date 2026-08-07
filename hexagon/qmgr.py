@@ -1,5 +1,4 @@
 import logging
-import os
 import subprocess
 import time
 
@@ -41,6 +40,23 @@ CONFIG_DEFAULTS = {
     "provides_network": False,
     "vcpus": "2",
 }
+
+
+def dom0_update_cmd():
+    return ["sudo", "qubes-dom0-update", "-y"]
+
+
+def vm_update_cmd(targets=(), max_concurrency=2, force=False):
+    # `--targets` updates the named VMs unconditionally, so `--force-update`
+    # only matters when qubes-vm-update is doing its own selection.
+    cmd = ["qubes-vm-update", "--max-concurrency", str(max_concurrency)]
+    if targets:
+        cmd += ["--targets", ",".join(targets)]
+    elif force:
+        cmd += ["--force-update"]
+    else:
+        cmd += ["--update-if-available"]
+    return cmd
 
 
 class HexagonQube(object):
@@ -223,50 +239,6 @@ class HexagonQube(object):
                 del self.pending_changes[i]
 
         return len(self.pending_changes) > 0
-
-    def updates_available(self):
-        return self.vm.features.get("updates-available", False)
-
-    def in_dom0(self):
-        """
-        Checks whether current execution is within dom0.
-        """
-        result = False
-        cmd = ["qubesctl", "--help"]
-        try:
-            subprocess.check_call(cmd, stdout=os.devnull, stderr=os.devnull)
-            result = True
-        except subprocess.CalledProcessError:
-            pass
-        return result
-
-    def update(self, force=False):
-        """
-        Upgrades packages within VM. Uses qubesctl to trigger Saltstack logic.
-        Skips updates if none are available, unless force=True.
-        """
-        # The qubesctl/salt logic will only work in dom0.
-        if not self.in_dom0:
-            raise NotImplementedError
-
-        if self.updates_available() or force:
-            logging.debug("Updating packages for VM: {}".format(self.name))
-            if self.name == "dom0":
-                cmd = ["sudo", "qubesctl", "state.sls", "update.qubes-dom0"]
-            else:
-                cmd = [
-                    "sudo",
-                    "qubesctl",
-                    "--skip-dom0",
-                    "--target",
-                    self.name,
-                    "state.sls",
-                    "update.qubes-vm",
-                ]
-            cmd_output = subprocess.check_output(cmd).strip()
-            logging.debug("Updated packages for VM: {}".format(cmd_output))
-        else:
-            logging.debug("No updates available, and force not set for VM: {}".format(self.name))
 
     def reboot(self, timeout=60, only_if_outdated=False):
         """

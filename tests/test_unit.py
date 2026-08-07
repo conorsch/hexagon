@@ -82,6 +82,103 @@ def test_tags_option_accepted_on_all_vm_subcommands(monkeypatch):
         assert args.tags == "foo", cmd
 
 
+def test_update_skip_dom0_flag_parses(monkeypatch):
+    monkeypatch.setattr(cli.sys, "argv", ["hexagon", "update", "--skip-dom0"])
+    assert cli.parse_args().skip_dom0 is True
+    monkeypatch.setattr(cli.sys, "argv", ["hexagon", "update"])
+    assert cli.parse_args().skip_dom0 is False
+
+
+def test_dom0_update_cmd():
+    assert qmgr.dom0_update_cmd() == ["sudo", "qubes-dom0-update", "-y"]
+
+
+def test_vm_update_cmd_with_targets():
+    assert qmgr.vm_update_cmd(["a", "b"], 4) == [
+        "qubes-vm-update",
+        "--max-concurrency",
+        "4",
+        "--targets",
+        "a,b",
+    ]
+
+
+def test_vm_update_cmd_no_targets_updates_if_available():
+    assert qmgr.vm_update_cmd([], 2)[-1] == "--update-if-available"
+
+
+def test_vm_update_cmd_no_targets_force():
+    assert qmgr.vm_update_cmd([], 2, force=True)[-1] == "--force-update"
+
+
+def test_vm_update_cmd_targets_win_over_force():
+    cmd = qmgr.vm_update_cmd(["a"], 2, force=True)
+    assert "--targets" in cmd
+    assert "--force-update" not in cmd
+
+
+@pytest.fixture
+def record_check_call(monkeypatch):
+    calls = []
+    monkeypatch.setattr(cli.subprocess, "check_call", lambda cmd: calls.append(cmd))
+    return calls
+
+
+def _run_update(monkeypatch, *argv):
+    monkeypatch.setattr(cli.sys, "argv", ["hexagon", *argv])
+    with pytest.raises(SystemExit) as excinfo:
+        cli.main()
+    return excinfo.value.code
+
+
+def test_update_runs_dom0_then_vm_update(fake_qubes, monkeypatch, record_check_call):
+    assert _run_update(monkeypatch, "update") == 0
+    assert record_check_call == [
+        ["sudo", "qubes-dom0-update", "-y"],
+        ["qubes-vm-update", "--max-concurrency", "2", "--update-if-available"],
+    ]
+
+
+def test_update_skip_dom0(fake_qubes, monkeypatch, record_check_call):
+    assert _run_update(monkeypatch, "update", "--skip-dom0") == 0
+    assert record_check_call == [
+        ["qubes-vm-update", "--max-concurrency", "2", "--update-if-available"]
+    ]
+
+
+def test_update_named_vm_skips_dom0(fake_qubes, monkeypatch, record_check_call):
+    assert _run_update(monkeypatch, "update", "work-vm") == 0
+    assert record_check_call == [
+        ["qubes-vm-update", "--max-concurrency", "2", "--targets", "work-vm"]
+    ]
+
+
+def test_update_dom0_only(fake_qubes, monkeypatch, record_check_call):
+    assert _run_update(monkeypatch, "update", "dom0") == 0
+    assert record_check_call == [["sudo", "qubes-dom0-update", "-y"]]
+
+
+def test_update_dry_run_logs_without_running(fake_qubes, monkeypatch, record_check_call, caplog):
+    caplog.set_level("DEBUG")
+    assert _run_update(monkeypatch, "--dry-run", "update") == 0
+    assert record_check_call == []
+    assert "Would run: sudo qubes-dom0-update -y" in caplog.text
+    assert "Would run: qubes-vm-update" in caplog.text
+
+
+def test_update_failure_exits_nonzero_but_continues(fake_qubes, monkeypatch):
+    calls = []
+
+    def failing_check_call(cmd):
+        calls.append(cmd)
+        raise cli.subprocess.CalledProcessError(1, cmd)
+
+    monkeypatch.setattr(cli.subprocess, "check_call", failing_check_call)
+    assert _run_update(monkeypatch, "update") == 1
+    # dom0 failure must not abort the VM update.
+    assert len(calls) == 2
+
+
 class FakeDomains(dict):
     """Mimic qubesadmin's domains collection: iteration yields VM objects,
     membership and indexing are by name."""

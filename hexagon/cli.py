@@ -2,6 +2,7 @@ import argparse
 import concurrent.futures
 import logging
 import os
+import subprocess
 import sys
 from importlib.metadata import PackageNotFoundError, version as _pkg_version
 
@@ -17,7 +18,7 @@ except ImportError as exc:
     _HAS_QUBESADMIN = False
     _QUBESADMIN_ERR = exc
 
-from .qmgr import HexagonQube
+from .qmgr import HexagonQube, dom0_update_cmd, vm_update_cmd
 from . import policy as policy_mod
 
 
@@ -121,7 +122,16 @@ def parse_args():
         "vms", nargs=argparse.ZERO_OR_MORE, action="store", help="VMs to update"
     )
     update_parser.add_argument(
-        "--force", default=False, action="store_true", help="update even if updates-available=0"
+        "--force",
+        default=False,
+        action="store_true",
+        help="update even if updates-available=0 (qubes-vm-update --force-update)",
+    )
+    update_parser.add_argument(
+        "--skip-dom0",
+        default=False,
+        action="store_true",
+        help="do not run qubes-dom0-update for dom0",
     )
     update_parser.add_argument(
         "--max-concurrency",
@@ -241,11 +251,6 @@ def reconcile_vm(args, vm_name):
     cq.reconcile()
 
 
-def update_vm(args, vm_name):
-    cq = HexagonQube(vm_name)
-    cq.update(force=args.force)
-
-
 def reboot_vm(args, vm_name):
     cq = HexagonQube(vm_name)
     cq.reboot()
@@ -287,8 +292,6 @@ def main():
         if not vms:
             logging.error("No VMs matched tag: {}".format(args.tags))
             sys.exit(1)
-    # TODO: support --max-concurrency flag, defaulting to 4
-    # for "update" behavior, but for e.g. ls it's ok to raise
     n_proc = len(vms) or 4
     if args.command == "reconcile":
         # Handle helper args, maybe belongs in parse_args
@@ -344,15 +347,27 @@ def main():
         func = reboot_vm
 
     elif args.command == "update":
-        n_proc = args.max_concurrency
-        if not vms:
-            vms = [x for x in q.domains if x.features.get("updates-available", "0") == "1"]
-            vms = [x.name for x in vms]
-        if "dom0" in vms:
-            logging.debug("Updating dom0 first")
-            vms = [x for x in vms if x != "dom0"]
-            update_vm(args, "dom0")
-        func = update_vm
+        # Delegates entirely to the upstream updaters: qubes-dom0-update for
+        # dom0, and a single qubes-vm-update call which handles its own target
+        # selection and parallelism. Naming specific VMs skips dom0.
+        targets = [v for v in vms if v != "dom0"]
+        cmds = []
+        if not args.skip_dom0 and (not vms or "dom0" in vms):
+            cmds.append(dom0_update_cmd())
+        if targets or not vms:
+            cmds.append(vm_update_cmd(targets, args.max_concurrency, force=args.force))
+        errors = 0
+        for cmd in cmds:
+            if args.dry_run:
+                logging.debug("Would run: {}".format(" ".join(cmd)))
+                continue
+            logging.debug("Running: {}".format(" ".join(cmd)))
+            try:
+                subprocess.check_call(cmd)
+            except subprocess.CalledProcessError as e:
+                errors += 1
+                logging.error("Update command failed: {}".format(repr(e)))
+        sys.exit(1 if errors else 0)
 
     elif args.command == "shutdown":
         requested_vms = len(vms)

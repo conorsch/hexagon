@@ -2,6 +2,11 @@
 
 ## unreleased
 
+- feat(update): replace salt/qubesctl with upstream tooling — `sudo qubes-dom0-update -y` for dom0
+  and a single batch `qubes-vm-update` call, passing `--max-concurrency` through natively; adds
+  `--skip-dom0`. Naming specific VMs now skips dom0; bare `hexagon update` always updates dom0.
+- refactor(qmgr): drop dead salt-era helpers (`update`, `updates_available`, `in_dom0`) and their
+  latent bugs (truthy `"0"` feature check; bound-method dom0 guard)
 - fix: dom0 policy grants for admin vms
 - fix(build): remove unused follows declaration
 
