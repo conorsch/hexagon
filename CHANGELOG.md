@@ -2,6 +2,10 @@
 
 ## unreleased
 
+- feat(cli): preflight before every Admin API subcommand — refuses non-Qubes hosts (neither
+  `/usr/share/qubes/marker-vm` nor `/etc/qubes-release`), a missing or interpreter-invisible
+  `qubesadmin` (naming the `PYTHONPATH` to export), and an unreachable/denied Admin API, each
+  with a specific message and exit 69 (`EX_UNAVAILABLE`) instead of a traceback
 - feat(update): replace salt/qubesctl with upstream tooling — `sudo qubes-dom0-update -y` for dom0
   and a single batch `qubes-vm-update` call, passing `--max-concurrency` through natively; adds
   `--skip-dom0`. Naming specific VMs now skips dom0; bare `hexagon update` always updates dom0.

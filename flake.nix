@@ -157,8 +157,9 @@
         # qubesadmin is NOT declared as a dependency here because it is not in
         # nixpkgs. It is available on Qubes OS via RPM (python3-qubesadmin in
         # dom0, or dnf install qubes-core-admin-client in an AppVM). The
-        # package builds fine but hexagon will exit with a clear error at
-        # runtime if qubesadmin is not on PYTHONPATH.
+        # package builds fine; at runtime hexagon's preflight (hexagon/preflight.py)
+        # exits with the exact PYTHONPATH to export when the system's qubesadmin
+        # isn't visible to this interpreter.
         packages.hexagon = pkgs.python313.pkgs.buildPythonApplication {
           pname = "hexagon";
           inherit version;

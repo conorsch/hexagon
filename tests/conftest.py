@@ -98,13 +98,18 @@ def pytest_collection_modifyitems(config, items):
 # Unit fixtures
 # --------------------------------------------------------------------------- #
 @pytest.fixture
-def fake_qubes(monkeypatch):
+def fake_qubes(monkeypatch, tmp_path):
     """Patch qubesadmin.Qubes() with an in-memory app exposing ``.domains``.
 
     Pre-populated with the default template so HexagonQube's template-existence
-    check passes. Add fake VMs via ``app.domains[name] = FakeVM(name)``.
+    check passes. Add fake VMs via ``app.domains[name] = FakeVM(name)``. Also
+    plants a VM marker so the CLI's preflight treats the test host as Qubes.
     """
     from hexagon.qmgr import DEFAULT_TEMPLATE
+
+    marker = tmp_path / "marker-vm"
+    marker.touch()
+    monkeypatch.setattr("hexagon.preflight.MARKER_VM", str(marker))
 
     class FakeVM:
         def __init__(self, name):

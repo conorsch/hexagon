@@ -165,7 +165,7 @@ def test_cli_policy_command_prints_and_exits(monkeypatch, capsys):
     def boom(*a, **k):
         raise AssertionError("policy must not touch the Admin API")
 
-    monkeypatch.setattr(cli.qubesadmin, "Qubes", boom, raising=False)
+    monkeypatch.setattr("qubesadmin.Qubes", boom, raising=False)
     monkeypatch.setattr(cli.sys, "argv", ["hexagon", "policy"])
 
     with pytest.raises(SystemExit) as exc:

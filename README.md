@@ -102,6 +102,24 @@ sudo dnf install -y /tmp/hexagon.rpm
 
 To uninstall, simply run `sudo dnf remove hexagon` in dom0.
 
+### Preflight
+
+hexagon only works inside Qubes OS. Every VM-facing subcommand starts with a
+preflight that checks, in order, and exits `69` (`EX_UNAVAILABLE`) with a
+specific message on the first miss:
+
+1. **Qubes host** — `/usr/share/qubes/marker-vm` (any VM) or `/etc/qubes-release`
+   (dom0) exists.
+2. **`qubesadmin` importable** — i.e. `qubes-core-admin-client` is installed. If
+   it's installed for the system Python but hexagon runs under another
+   interpreter (the Nix flake ships its own), the message names the
+   `PYTHONPATH` to export.
+3. **Admin API reachable** — `admin.vm.List` succeeds: qubesd is up (dom0) and
+   the qrexec policy admits this qube (AppVM; see [docs/testing.md](docs/testing.md)).
+
+`hexagon --help`, `--version`, and `hexagon policy` need none of this, so they
+run anywhere.
+
 ## Examples
 
 ### Updating templates

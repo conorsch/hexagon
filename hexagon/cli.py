@@ -8,18 +8,9 @@ from importlib.metadata import PackageNotFoundError, version as _pkg_version
 
 import yaml
 
-
-try:
-    import qubesadmin
-
-    _HAS_QUBESADMIN = True
-    _QUBESADMIN_ERR = None
-except ImportError as exc:
-    _HAS_QUBESADMIN = False
-    _QUBESADMIN_ERR = exc
-
 from .qmgr import HexagonQube, dom0_update_cmd, vm_update_cmd
 from . import policy as policy_mod
+from . import preflight
 
 
 def _resolve_version():
@@ -273,15 +264,9 @@ def main():
         )
         sys.exit(0)
 
-    if not _HAS_QUBESADMIN:
-        print(
-            "ERROR: qubesadmin is required but not installed. "
-            "Install it with: dnf install qubes-core-admin-client",
-            file=sys.stderr,
-        )
-        sys.exit(1)
-
-    q = qubesadmin.Qubes()
+    # Everything below needs the Admin API. Bail with a specific reason if this
+    # host, interpreter, or qrexec policy can't provide it (see preflight.py).
+    q = preflight.run()
     vms = args.vms
     # Tag selection: no names given -> target all tagged VMs; names given ->
     # narrow them to the tagged subset. `ls` applies the same filter itself.
