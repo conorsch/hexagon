@@ -7,6 +7,11 @@
 - feat(update): delegate to `qubes-dom0-update` and `qubes-vm-update`; add `--skip-dom0`; naming VMs skips dom0
 - refactor(qmgr): drop dead salt-era helpers
 - fix(install-rpm): detect the installed version via `rpm -q`; upgrade in place and verify the NEVR
+- feat(cli): `--tags` filter on all VM subcommands, e.g. `hexagon shutdown --tags foo`
+- docs: add `docs/architecture.md`
+
+## 0.3.1, 2026-07-26
+
 - fix: dom0 policy grants for admin vms
 - fix(build): remove unused follows declaration
 
