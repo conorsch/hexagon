@@ -109,16 +109,19 @@ POLICY_TEMPLATE = """\
 {% endfor %}
 
 # --- qubes_proxy: per-target disposable management VM (dom0 isolation) ---
-# EVERY grant here targets the disp-mgmt-* disposable, NOT the managed VM: the
-# proxy creates/starts/kills the disposable, copies the play to it (Filecopy),
-# runs it there (AnsibleVM), and authors ephemeral disp-mgmt->target rules via
-# the CreateManagementPolicies RPC (whose ARGUMENT is the disposable). Those
-# disposables carry created-by-<calling-qube> (Qubes auto-stamps it; the RPC
-# hard-checks it), so all of this keys on each admin qube's created-by tag --
-# one block per admin. (The disp-mgmt->target VMShell/Filecopy grants are
-# written ephemerally by the RPC at runtime, so they are NOT emitted here.)
+# The proxy creates/starts/kills a disp-mgmt-* disposable, copies the play to
+# it (Filecopy), runs it there (AnsibleVM), and has dom0 author ephemeral
+# disp-mgmt->target VMRootShell/Filecopy rules via the CreateManagementPolicies
+# RPC (so those are NOT emitted here). That RPC is invoked as
+#     qrexec-client-vm <managed-vm> ansible.CreateManagementPolicies+<disposable>
+# i.e. its qrexec TARGET is the MANAGED VM (@tag:{{ target_tag }}); dom0 then
+# hard-checks that the ARGUMENT disposable carries created-by-<calling-qube>
+# (Qubes auto-stamps it). Everything else in this block acts ON the disposable,
+# so it keys on each admin qube's created-by tag -- one block per admin.
 {{ rule('admin.vm.Create.DispVM', admin, 'dom0', 'allow', arg='+' ~ mgmt_dispvm) -}}
 {{ rule('admin.vm.property.Get', admin, mgmt_dispvm, 'allow target=dom0', arg='+label') -}}
+{{ rule('ansible.CreateManagementPolicies', admin, target, 'allow target=dom0') -}}
+{{ rule('ansible.RemoveManagementPolicies', admin, target, 'allow target=dom0') -}}
 {% for aq in admin_qubes %}
 {% set created = '@tag:created-by-' ~ aq -%}
 {{ rule('admin.vm.List', admin, created, 'allow target=dom0') -}}
@@ -129,8 +132,6 @@ POLICY_TEMPLATE = """\
 {{ rule('admin.vm.Start', admin, created, 'allow target=dom0') -}}
 {{ rule('admin.vm.Kill', admin, created, 'allow target=dom0') -}}
 {{ rule('admin.vm.Remove', admin, created, 'allow target=dom0') -}}
-{{ rule('ansible.CreateManagementPolicies', admin, target, 'allow target=dom0') -}}
-{{ rule('ansible.RemoveManagementPolicies', admin, target, 'allow target=dom0') -}}
 {{ rule('qubes.AnsibleVM', admin, created, 'allow') -}}
 {{ rule('qubes.Filecopy', admin, created, 'allow') -}}
 {% endfor -%}

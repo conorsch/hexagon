@@ -2,6 +2,9 @@
 
 ## unreleased
 
+- fix(policy): emit `ansible.{Create,Remove}ManagementPolicies` once rather than per admin qube,
+  and correct the template comment: their qrexec target is the managed VM (`@tag:hexagon`), the
+  disposable is only the `+argument`. Unit test now matches upstream qubes-ansible behavior.
 - feat(cli): preflight before every Admin API subcommand — refuses non-Qubes hosts (neither
   `/usr/share/qubes/marker-vm` nor `/etc/qubes-release`), a missing or interpreter-invisible
   `qubesadmin` (naming the `PYTHONPATH` to export), and an unreachable/denied Admin API, each

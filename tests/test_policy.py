@@ -46,17 +46,31 @@ def test_managed_verbs_target_the_target_tag():
         assert any(ln.split()[3] == TARGET for ln in matches), "{} not on target tag".format(svc)
 
 
-def test_proxy_rpc_services_target_the_dispmgmt_created_by_tag():
-    # qubes.AnsibleVM / Filecopy / CreateManagementPolicies act on the disp-mgmt
-    # DISPOSABLE, not the managed VM -- so they must target @tag:created-by-<admin>
-    # (col 3), else the run dies with "126 Request refused". Regression guard.
+def _targets_of(body, svc):
+    matches = [ln for ln in body.splitlines() if ln.startswith(svc + " ")]
+    assert matches, "missing rule for {}".format(svc)
+    return {ln.split()[3] for ln in matches}
+
+
+def test_proxy_exec_services_target_the_dispmgmt_created_by_tag():
+    # qubes.AnsibleVM / Filecopy run ON the disp-mgmt DISPOSABLE, not the managed
+    # VM -- so they must target @tag:created-by-<admin> (col 3), else the run
+    # dies with "126 Request refused". Regression guard.
     body = policy.render_policy(admin_qubes=[ADMIN_QUBE])
     created = "@tag:created-by-" + ADMIN_QUBE
-    for svc in ("qubes.AnsibleVM", "qubes.Filecopy", "ansible.CreateManagementPolicies"):
-        matches = [ln for ln in body.splitlines() if ln.startswith(svc + " ")]
-        assert matches, "missing rule for {}".format(svc)
-        targets = {ln.split()[3] for ln in matches}
-        assert targets == {created}, "{} targets {}, want {{{}}}".format(svc, targets, created)
+    for svc in ("qubes.AnsibleVM", "qubes.Filecopy"):
+        assert _targets_of(body, svc) == {created}, svc
+
+
+def test_management_policies_rpcs_target_the_managed_vm():
+    # qubes_proxy invokes `qrexec-client-vm <managed-vm> ansible.Create...+<disp>`:
+    # the qrexec TARGET is the managed VM; the disposable is only the argument
+    # (dom0's service checks its created-by tag itself). So col 3 must be the
+    # target tag, and the rule must not be repeated per admin qube.
+    body = policy.render_policy(admin_qubes=[ADMIN_QUBE, "other-admin"])
+    for svc in ("ansible.CreateManagementPolicies", "ansible.RemoveManagementPolicies"):
+        assert _targets_of(body, svc) == {TARGET}, svc
+        assert sum(ln.startswith(svc + " ") for ln in body.splitlines()) == 1, svc
 
 
 def test_create_appvm_targets_dom0():
