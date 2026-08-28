@@ -2,21 +2,11 @@
 
 ## unreleased
 
-- fix(policy): emit `ansible.{Create,Remove}ManagementPolicies` once rather than per admin qube,
-  and correct the template comment: their qrexec target is the managed VM (`@tag:hexagon`), the
-  disposable is only the `+argument`. Unit test now matches upstream qubes-ansible behavior.
-- feat(cli): preflight before every Admin API subcommand — refuses non-Qubes hosts (neither
-  `/usr/share/qubes/marker-vm` nor `/etc/qubes-release`), a missing or interpreter-invisible
-  `qubesadmin` (naming the `PYTHONPATH` to export), and an unreachable/denied Admin API, each
-  with a specific message and exit 69 (`EX_UNAVAILABLE`) instead of a traceback
-- feat(update): replace salt/qubesctl with upstream tooling — `sudo qubes-dom0-update -y` for dom0
-  and a single batch `qubes-vm-update` call, passing `--max-concurrency` through natively; adds
-  `--skip-dom0`. Naming specific VMs now skips dom0; bare `hexagon update` always updates dom0.
-- refactor(qmgr): drop dead salt-era helpers (`update`, `updates_available`, `in_dom0`) and their
-  latent bugs (truthy `"0"` feature check; bound-method dom0 guard)
-- fix(install-rpm): `rpm -qa` always exits 0, so the script always chose `dnf reinstall`, which
-  no-ops (exit 0) when the built version isn't installed. Now branches on `rpm -q`, swaps existing
-  installs via `rpm -Uvh --replacepkgs --oldpackage`, and verifies the installed NEVR afterwards.
+- fix(policy): emit `ansible.{Create,Remove}ManagementPolicies` once, targeting the managed VM (matches upstream qubes-ansible)
+- feat(cli): preflight — non-Qubes host, missing `qubesadmin`, or unreachable Admin API exits 69 with a specific message
+- feat(update): delegate to `qubes-dom0-update` and `qubes-vm-update`; add `--skip-dom0`; naming VMs skips dom0
+- refactor(qmgr): drop dead salt-era helpers
+- fix(install-rpm): detect the installed version via `rpm -q`; upgrade in place and verify the NEVR
 - fix: dom0 policy grants for admin vms
 - fix(build): remove unused follows declaration
 
