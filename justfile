@@ -10,22 +10,20 @@ fmt:
 	ruff format .
 	ruff check --fix .
 
-# bump the project version everywhere it's declared (see docs/releasing.md)
+# cut a release: finalize version, close both changelogs, verify, commit, reopen alpha
 [group('build')]
-version version:
-  sed -i 's/^version = .*/version = "{{version}}"/' pyproject.toml
-  opencode run --auto "add a %changelog entry in @rpm-build/SPECS/hexagon.spec"
-  @echo "    git tag -a -s {{version}} -m 'hexagon {{version}}'"
+release *args:
+  ./scripts/release {{args}}
 
-# bump to the next alpha pre-release (0.3.1 -> 0.3.2a1; 0.3.2a1 -> 0.3.2a2)
+# step the alpha pre-release (0.3.1 -> 0.3.2a1; 0.3.2a1 -> 0.3.2a2)
 [group('build')]
 bump:
-  uv version --frozen --bump alpha 2>/dev/null || uv version --frozen --bump patch --bump alpha
+  ./scripts/version --alpha --write
 
 # finalize the current pre-release (0.3.2a2 -> 0.3.2)
 [group('build')]
 bump-stable:
-  uv version --frozen --bump stable
+  ./scripts/version --stable --write
 
 # build the default nix package (hexagon + qvm-reboot CLIs)
 [group('build')]

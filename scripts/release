@@ -1,0 +1,104 @@
+#!/bin/bash
+# Cuts a release: finalize the version, close out the changelogs, verify, commit,
+# and reopen the next alpha. See docs/releasing.md for the ritual this automates.
+#
+#   scripts/release              # finalize the current pre-release (0.3.2a2 -> 0.3.2)
+#   scripts/release 0.4.0        # set an explicit version
+#   scripts/release --tag        # also create the signed tag inline
+#
+# The spec %changelog stanza is derived from the CHANGELOG.md "unreleased"
+# block, so the two changelogs cannot drift.
+set -euo pipefail
+
+cd "$(git rev-parse --show-toplevel)"
+
+CHANGELOG=CHANGELOG.md
+SPEC=rpm-build/SPECS/hexagon.spec
+
+tag_inline=false
+version=""
+for arg in "$@"; do
+    case "$arg" in
+        --tag) tag_inline=true ;;
+        -*) echo "ERROR: unknown option: $arg" >&2; exit 1 ;;
+        *) version="$arg" ;;
+    esac
+done
+
+die() { echo "ERROR: $*" >&2; exit 1; }
+step() { printf '\n\033[1m==>\033[0m %s\n' "$*"; }
+
+VERSION=scripts/version   # the sole reader/writer of pyproject.toml's version
+
+# --- guards --------------------------------------------------------------- #
+
+[[ -z "$(git status --porcelain)" ]] || die "working tree is dirty; commit or stash first."
+
+# The unreleased block must hold something to release.
+notes="$(awk '/^## unreleased/{f=1;next} /^## /{f=0} f' "$CHANGELOG" | sed '/^$/d')"
+[[ -n $notes ]] || die "no entries under '## unreleased' in ${CHANGELOG}; nothing to release."
+
+# --- version -------------------------------------------------------------- #
+
+step "Finalizing version"
+[[ -n $version ]] || version="$($VERSION --stable)"
+
+[[ $version =~ ^[0-9]+(\.[0-9]+)*$ ]] || die "'${version}' is a pre-release; releases must be stable."
+if git rev-parse -q --verify "refs/tags/${version}" > /dev/null; then
+    die "tag ${version} already exists."
+fi
+
+$VERSION "$version" --write > /dev/null
+echo "    ${version}"
+
+date_iso="$(date '+%Y-%m-%d')"
+date_rpm="$(date '+%a %b %-d %Y')"
+author="$(git config user.name) <$(git config user.email)>"
+
+# --- changelogs ----------------------------------------------------------- #
+
+step "Closing out ${CHANGELOG}"
+# Rename the unreleased heading to a dated stanza, and open a fresh one above it.
+sed -i "s|^## unreleased$|## unreleased\n\n## ${version}, ${date_iso}|" "$CHANGELOG"
+echo "    ## ${version}, ${date_iso}"
+
+step "Adding ${SPEC} %changelog stanza"
+# Same notes, same order, rpm's date form. Newest first, i.e. right below the
+# %changelog directive.
+stanza="* ${date_rpm} ${author} - ${version}"$'\n'"${notes}"
+awk -v stanza="$stanza" '
+    {print}
+    /^%changelog$/ && !done {print stanza "\n"; done=1}
+' "$SPEC" > "$SPEC.tmp" && mv "$SPEC.tmp" "$SPEC"
+echo "    ${stanza%%$'\n'*}"
+
+# --- verify --------------------------------------------------------------- #
+
+step "Verifying (lint, unit tests, RPM)"
+just lint
+just test
+just rpm
+ls rpm-build/RPMS/noarch/*"${version}"*.rpm > /dev/null \
+    || die "built RPM does not carry version ${version}."
+
+# --- commit, tag, reopen -------------------------------------------------- #
+
+step "Committing release"
+git add -A -- pyproject.toml "$CHANGELOG" "$SPEC"
+git commit -q -m "chore: release v${version}"
+release_sha="$(git rev-parse --short HEAD)"
+
+if [[ $tag_inline == true ]]; then
+    step "Tagging"
+    git tag -a -s "$version" -m "hexagon ${version}"
+fi
+
+step "Reopening development"
+echo "    $($VERSION --alpha --write)"
+git commit -q -am "chore: bump alpha version"
+
+printf '\n\033[1mReleased %s\033[0m (%s)\n' "$version" "$release_sha"
+if [[ $tag_inline != true ]]; then
+    printf '\nTag it:\n    git tag -a -s %s -m %s %s\n' \
+        "$version" "'hexagon ${version}'" "$release_sha"
+fi

@@ -12,17 +12,17 @@
           system = "x86_64-linux";
         };
 
-        # The version is declared in pyproject.toml (read here for the RPM
-        # derivation's name/metadata) and mirrored in the spec's %global version.
-        # `just bump <version>` keeps the two in sync; see docs/releasing.md.
+        # Single source of truth for the version: pyproject.toml. The spec has
+        # no version literal (`Version: %{version}`); it is passed to rpmbuild
+        # below. See docs/releasing.md.
         version = (builtins.fromTOML (builtins.readFile ./pyproject.toml)).project.version;
 
         # RPM version, per the Fedora convention for Python pre-releases:
         # PEP 440 forms (0.3.2a1) sort ABOVE the final release under rpmvercmp,
         # so map them to tilde form (0.3.2~a1), which sorts below. Stable
         # versions pass through unchanged. Only rpm metadata wears the tilde;
-        # derivation names and the sdist keep the PEP 440 form (`uv version`
-        # always writes it normalized, so the sdist name matches `version`).
+        # derivation names and the sdist keep the PEP 440 form (scripts/version
+        # only ever writes that form, so the sdist name matches `version`).
         rpmVersion =
           let m = builtins.match "([0-9.]+)((a|b|rc)[0-9]+)" version;
           in if m == null then version else "${builtins.elemAt m 0}~${builtins.elemAt m 1}";
