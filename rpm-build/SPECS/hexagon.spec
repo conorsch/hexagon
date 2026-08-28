@@ -94,6 +94,15 @@ find %{buildroot} -exec touch -m -d @%{source_date_epoch} {} +
 %{_bindir}/qvm-reboot
 
 %changelog
+* Fri Aug 28 2026 Conor Schaefer <conor@ruin.dev> - 0.3.2
+- fix(policy): emit `ansible.{Create,Remove}ManagementPolicies` once, targeting the managed VM (matches upstream qubes-ansible)
+- feat(cli): preflight — non-Qubes host, missing `qubesadmin`, or unreachable Admin API exits 69 with a specific message
+- feat(update): delegate to `qubes-dom0-update` and `qubes-vm-update`; add `--skip-dom0`; naming VMs skips dom0
+- refactor(qmgr): drop dead salt-era helpers
+- fix(install-rpm): detect the installed version via `rpm -q`; upgrade in place and verify the NEVR
+- feat(cli): `--tags` filter on all VM subcommands, e.g. `hexagon shutdown --tags foo`
+- docs: add `docs/architecture.md`
+
 * Sun Jul 26 2026 Conor Schaefer <conor@ruin.dev> - 0.3.1
 - fix: dom0 policy grants for admin vms
 - fix(build): remove unused follows declaration

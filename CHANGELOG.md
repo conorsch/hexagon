@@ -2,6 +2,8 @@
 
 ## unreleased
 
+## 0.3.2, 2026-08-28
+
 - fix(policy): emit `ansible.{Create,Remove}ManagementPolicies` once, targeting the managed VM (matches upstream qubes-ansible)
 - feat(cli): preflight — non-Qubes host, missing `qubesadmin`, or unreachable Admin API exits 69 with a specific message
 - feat(update): delegate to `qubes-dom0-update` and `qubes-vm-update`; add `--skip-dom0`; naming VMs skips dom0
