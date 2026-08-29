@@ -54,3 +54,8 @@ admin.vm.tag.Remove      *              MGMT_QUBE  @tag:hexagon-test            
 ## the VM (avoids the "VM in use" error), which needs qubes.VMShell to it. This is
 ## a regular qrexec call into the VM (no target= redirect). Scoped to test VMs.
 qubes.VMShell            *              MGMT_QUBE  @tag:hexagon-test            allow
+
+## `hexagon reboot -t` opens a terminal in the VM via qubes.StartApp (also a
+## regular qrexec call). hexagon exits non-zero if it's refused, so the
+## integration test doubles as a check that this grant is in place.
+qubes.StartApp           +qubes-run-terminal MGMT_QUBE  @tag:hexagon-test       allow

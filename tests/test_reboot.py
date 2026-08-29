@@ -3,9 +3,11 @@
 These start real VMs, so they're slower than the rest of the suite.
 """
 
+import subprocess
+
 import pytest
 
-from .base import vm_name
+from .base import hexagon_cmd, vm_name
 
 pytestmark = pytest.mark.integration
 
@@ -18,6 +20,20 @@ def test_reboot_resets_uptime(make_test_vm):
     uptime_after = vm.uptime()
     # After a reboot the VM has only just come back up.
     assert uptime_after < uptime_before
+
+
+def test_reboot_terminal_flag_is_granted(make_test_vm):
+    """End-to-end `reboot -t`. Its qubes.StartApp call is refused unless the
+    policy grants it (the interesting case when run from a management qube),
+    and hexagon exits non-zero on refusal -- so a clean exit *is* the
+    assertion. The terminal window goes away with the VM at teardown."""
+    vm = make_test_vm(vm_name(1))
+    vm.vm.start()
+    uptime_before = vm.uptime()
+
+    subprocess.run(hexagon_cmd("reboot", "-t", vm.name), check=True, timeout=180)
+
+    assert vm.uptime() < uptime_before
 
 
 def test_reboot_netvm_keeps_client_up(make_test_vm):

@@ -71,6 +71,10 @@ only the VMs tagged `hexagon-test`** (bootstrapped via the unforgeable
 #### Privilege tiers
 
 - Lifecycle/management on self-created VMs needs only the scoped grant.
+- `hexagon reboot -t` additionally needs `qubes.StartApp +qubes-run-terminal`
+  to the target (a regular qrexec call, like the `qubes.VMShell` reboot uses);
+  hexagon exits non-zero if it's refused, so `test_reboot_terminal_flag_is_granted`
+  fails loudly when the grant is missing.
 - The CLI (`hexagon ls`) additionally needs the global *read* grants in the
   policy — it lists and inspects every VM.
 - Nothing in the suite requires write access to VMs it didn't create.
@@ -83,7 +87,7 @@ work there.
 | Env var | Default | Meaning |
 |---------|---------|---------|
 | `HEXAGON_INTEGRATION` | unset | `1` enables integration tests (same as `--run-integration`) |
-| `HEXAGON_TEST_TEMPLATE` | `hexagon.qmgr.DEFAULT_TEMPLATE` (`fedora-43`) | TemplateVM for created test VMs |
+| `HEXAGON_TEST_TEMPLATE` | `hexagon.qmgr.DEFAULT_TEMPLATE` (`fedora-43-xfce`) | TemplateVM for created test VMs |
 | `HEXAGON_BIN` | unset → `python -m hexagon` | CLI invocation for end-to-end tests; set to `hexagon` to test the installed console script |
 
 The default template lives in **one** place — `hexagon.qmgr.DEFAULT_TEMPLATE` —

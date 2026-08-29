@@ -106,6 +106,13 @@ def parse_args():
         action="store_true",
         help="Reboot only VMs whose TemplateVMs have been recently updated",
     )
+    reboot_parser.add_argument(
+        "-t",
+        "--terminal",
+        default=False,
+        action="store_true",
+        help="open a terminal in each VM once it's back up (does not wait for it to close)",
+    )
     update_parser = subparsers.add_parser(
         "update", parents=[tags_parser], help="update packages inside VM"
     )
@@ -118,11 +125,24 @@ def parse_args():
         action="store_true",
         help="update even if updates-available=0 (qubes-vm-update --force-update)",
     )
-    update_parser.add_argument(
+    # dom0/domU scoping. Naming VMs already implies a scope (see main), so
+    # these are shorthands: `--vms` is `--skip-dom0`; `--dom0` is `dom0` alone.
+    scope = update_parser.add_mutually_exclusive_group()
+    scope.add_argument(
         "--skip-dom0",
+        "--vms",
+        "--domus",
+        dest="skip_dom0",
         default=False,
         action="store_true",
-        help="do not run qubes-dom0-update for dom0",
+        help="only update domUs; do not run qubes-dom0-update",
+    )
+    scope.add_argument(
+        "--dom0",
+        dest="only_dom0",
+        default=False,
+        action="store_true",
+        help="only run qubes-dom0-update; skip domUs",
     )
     update_parser.add_argument(
         "--max-concurrency",
@@ -245,6 +265,8 @@ def reconcile_vm(args, vm_name):
 def reboot_vm(args, vm_name):
     cq = HexagonQube(vm_name)
     cq.reboot()
+    if args.terminal:
+        cq.open_terminal()
 
 
 def main():
@@ -336,10 +358,13 @@ def main():
         # dom0, and a single qubes-vm-update call which handles its own target
         # selection and parallelism. Naming specific VMs skips dom0.
         targets = [v for v in vms if v != "dom0"]
+        if args.only_dom0 and targets:
+            logging.error("--dom0 cannot be combined with domU selection: {}".format(targets))
+            sys.exit(1)
         cmds = []
         if not args.skip_dom0 and (not vms or "dom0" in vms):
             cmds.append(dom0_update_cmd())
-        if targets or not vms:
+        if not args.only_dom0 and (targets or not vms):
             cmds.append(vm_update_cmd(targets, args.max_concurrency, force=args.force))
         errors = 0
         for cmd in cmds:

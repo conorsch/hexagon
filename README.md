@@ -27,6 +27,10 @@ hexagon ls --outdated
 # Reboot particular VM (even if networked clients are attached!)
 hexagon reboot sys-whonix
 
+# Reboot a VM, then open a terminal in it once it's back up
+# (from a management qube this needs a `qubes.StartApp +qubes-run-terminal` grant)
+hexagon reboot -t work
+
 # Modify TemplateVM settings for several VMs at once (e.g. fedora-30 -> fedora-34)
 hexagon reconcile --template fedora-34 sys-usb sys-net sys-firewall
 
@@ -35,6 +39,10 @@ hexagon update fedora-34
 
 # Upgrade packages for all VMs with pending updates
 hexagon update
+
+# Upgrade only domUs (skip dom0), or only dom0
+hexagon update --vms
+hexagon update --dom0
 
 # Shut down all VMs carrying a given tag (works on all VM subcommands)
 hexagon shutdown --tags foo
@@ -76,7 +84,10 @@ block per `--admin-qube` (default: the local host). The unmanaged sys-VMs the
 `qube` module reads for netvm checks stay explicit (`--sys-vm`, repeatable);
 `--mgmt-dispvm` overrides a non-default management DispVM. Provisioning (qube
 lifecycle) stays with hexagon's other verbs; Ansible only enforces config
-*inside* qubes.
+*inside* qubes. The policy also carries the two plain qrexec grants hexagon's
+own verbs need from that MgmtVM: `qubes.VMShell` (`hexagon reboot` powers a
+netvm off from inside when clients are attached) and
+`qubes.StartApp +qubes-run-terminal` (`hexagon reboot -t`).
 
 ## Installation
 In order to use the tool, you must build the RPM in an AppVM,

@@ -2,6 +2,12 @@
 
 ## unreleased
 
+- feat(reboot): `-t`/`--terminal` opens a terminal in each rebooted VM without waiting on it; a refused or failed launch is an error
+- test: integration test for `reboot -t`, and the `qubes.StartApp` grant it needs in the test policy
+- chore: default TemplateVM (app default and test suite) is now `fedora-43-xfce`, as Qubes ships it
+- feat(policy): grant `qubes.VMShell` and `qubes.StartApp +qubes-run-terminal` on managed VMs, so `hexagon reboot` (incl. `-t`) works fully from the MgmtVM
+- feat(update): `--vms`/`--domus` (aliases for `--skip-dom0`) and `--dom0` (skip domUs)
+
 ## 0.3.2, 2026-08-28
 
 - fix(policy): emit `ansible.{Create,Remove}ManagementPolicies` once, targeting the managed VM (matches upstream qubes-ansible)

@@ -89,6 +89,29 @@ def test_update_skip_dom0_flag_parses(monkeypatch):
     assert cli.parse_args().skip_dom0 is False
 
 
+def test_update_scope_aliases_parse(monkeypatch):
+    for flag in ("--vms", "--domus"):
+        monkeypatch.setattr(cli.sys, "argv", ["hexagon", "update", flag])
+        assert cli.parse_args().skip_dom0 is True, flag
+    monkeypatch.setattr(cli.sys, "argv", ["hexagon", "update", "--dom0"])
+    assert cli.parse_args().only_dom0 is True
+
+
+def test_update_dom0_and_vms_flags_are_exclusive(monkeypatch):
+    monkeypatch.setattr(cli.sys, "argv", ["hexagon", "update", "--dom0", "--vms"])
+    with pytest.raises(SystemExit) as excinfo:
+        cli.parse_args()
+    assert excinfo.value.code == 2
+
+
+def test_reboot_terminal_flag_parses(monkeypatch):
+    for flag in ("-t", "--terminal"):
+        monkeypatch.setattr(cli.sys, "argv", ["hexagon", "reboot", flag, "work-vm"])
+        args = cli.parse_args()
+        assert args.terminal is True, flag
+        assert args.vms == ["work-vm"]
+
+
 def test_dom0_update_cmd():
     assert qmgr.dom0_update_cmd() == ["sudo", "qubes-dom0-update", "-y"]
 
@@ -156,6 +179,23 @@ def test_update_named_vm_skips_dom0(fake_qubes, monkeypatch, record_check_call):
 def test_update_dom0_only(fake_qubes, monkeypatch, record_check_call):
     assert _run_update(monkeypatch, "update", "dom0") == 0
     assert record_check_call == [["sudo", "qubes-dom0-update", "-y"]]
+
+
+def test_update_dom0_flag_skips_vms(fake_qubes, monkeypatch, record_check_call):
+    assert _run_update(monkeypatch, "update", "--dom0") == 0
+    assert record_check_call == [["sudo", "qubes-dom0-update", "-y"]]
+
+
+def test_update_vms_flag_skips_dom0(fake_qubes, monkeypatch, record_check_call):
+    assert _run_update(monkeypatch, "update", "--vms") == 0
+    assert record_check_call == [
+        ["qubes-vm-update", "--max-concurrency", "2", "--update-if-available"]
+    ]
+
+
+def test_update_dom0_flag_rejects_named_vms(fake_qubes, monkeypatch, record_check_call):
+    assert _run_update(monkeypatch, "update", "--dom0", "work-vm") == 1
+    assert record_check_call == []
 
 
 def test_update_dry_run_logs_without_running(fake_qubes, monkeypatch, record_check_call, caplog):
@@ -238,6 +278,72 @@ def test_no_vms_matching_tag_errors(fake_qubes, monkeypatch):
         cli.main()
 
     assert excinfo.value.code == 1
+
+
+def test_reboot_vm_opens_terminal_after_reboot(fake_qubes, monkeypatch):
+    calls = []
+    monkeypatch.setattr(qmgr.HexagonQube, "reboot", lambda self: calls.append("reboot"))
+    monkeypatch.setattr(qmgr.HexagonQube, "open_terminal", lambda self: calls.append("terminal"))
+
+    cli.reboot_vm(types.SimpleNamespace(terminal=True), "work-vm")
+    assert calls == ["reboot", "terminal"]
+
+    calls.clear()
+    cli.reboot_vm(types.SimpleNamespace(terminal=False), "work-vm")
+    assert calls == ["reboot"]
+
+
+def _terminal_vm(fake_qubes, rc):
+    """Install a fake "work-vm" whose run_service returns a Popen-alike that
+    has already exited with `rc`, or is still running when rc is None."""
+    recorded = {}
+
+    class FakePopen:
+        def wait(self, timeout=None):
+            if rc is None:
+                raise qmgr.subprocess.TimeoutExpired("qrexec", timeout)
+            return rc
+
+    class FakeVM:
+        def __init__(self, name):
+            self.name = name
+            self.tags = set()
+
+        def run_service(self, service, **kwargs):
+            recorded["service"] = service
+            recorded["kwargs"] = kwargs
+            return FakePopen()
+
+    fake_qubes.domains["work-vm"] = FakeVM("work-vm")
+    return recorded
+
+
+def test_open_terminal_launches_detached(fake_qubes):
+    recorded = _terminal_vm(fake_qubes, rc=None)
+    qmgr.HexagonQube("work-vm").open_terminal()
+
+    assert recorded["service"] == "qubes.StartApp+qubes-run-terminal"
+    # Fire-and-forget: no dangling pipes, not tied to hexagon's session...
+    assert recorded["kwargs"]["start_new_session"] is True
+    assert recorded["kwargs"]["stdin"] is qmgr.subprocess.DEVNULL
+    # ...but stderr is inherited, so a qrexec "Request refused" stays visible.
+    assert "stderr" not in recorded["kwargs"]
+    # `wait=False` would raise from an AppVM (qubesadmin QubesRemote); rely on
+    # run_service returning a Popen without waiting instead.
+    assert "wait" not in recorded["kwargs"]
+
+
+def test_open_terminal_reports_early_failure(fake_qubes):
+    # e.g. refused by qrexec policy from a management qube: exits 126 at once.
+    _terminal_vm(fake_qubes, rc=126)
+    with pytest.raises(qmgr.subprocess.CalledProcessError):
+        qmgr.HexagonQube("work-vm").open_terminal()
+
+
+def test_open_terminal_accepts_quick_clean_exit(fake_qubes):
+    # A launcher that detaches and exits 0 immediately is still a success.
+    _terminal_vm(fake_qubes, rc=0)
+    qmgr.HexagonQube("work-vm").open_terminal()
 
 
 def test_qvm_reboot_main_execs_hexagon_reboot(monkeypatch):
