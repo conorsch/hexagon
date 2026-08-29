@@ -111,6 +111,10 @@ qvm-run --pass-io work '/home/user/hexagon/rpm-build/RPMS/noarch/hexagon-0.2.0-1
 sudo dnf install -y /tmp/hexagon.rpm
 ```
 
+`just install` does the same in place, wherever the checkout is: in dom0 (after
+`just clone`), or in the AppVM that built it, to drive hexagon over the Admin
+API from there. In a template-based AppVM that lasts until its next restart.
+
 To uninstall, simply run `sudo dnf remove hexagon` in dom0.
 
 ## Examples

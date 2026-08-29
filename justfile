@@ -62,7 +62,7 @@ test-integration:
 
 alias integration := test-integration
 
-# install built RPM in dom0
+# install built RPM in place: dom0, or this AppVM (for Admin API use)
 [group('dom0')]
 install:
 	./scripts/install-rpm

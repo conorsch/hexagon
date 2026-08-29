@@ -1,8 +1,15 @@
 #!/bin/bash
-# Installs the locally built RPM in dom0. There's a single universal noarch
-# package (built by `just rpm` / `nix build .#rpm`), so just find it and install it.
+# Installs the locally built RPM -- in dom0, or in the AppVM that built it (to
+# drive hexagon over the Admin API from there). There's a single universal
+# noarch package (built by `just rpm` / `nix build .#rpm`): find it, install it.
+#
+# Always query with the host's rpm: the nix devshell puts nixpkgs' own `rpm`
+# first on PATH (for the packaging tests), and it looks for the rpmdb at
+# /var/lib/rpm, not Fedora's /usr/lib/sysimage/rpm -- so `rpm -q` there reports
+# nothing installed. (`sudo` resets PATH, so the mutating calls never hit this.)
 set -euo pipefail
 
+rpm=/usr/bin/rpm
 
 pkg="$(find rpm-build/RPMS/noarch -type f -iname '*.noarch.rpm' | sort -V | tail -n1)"
 if [[ -z $pkg ]]; then
@@ -10,10 +17,17 @@ if [[ -z $pkg ]]; then
     exit 1
 fi
 
-# Full package identity (name-epoch:version-release, aka NEVR) of the local build.
-built_version="$(rpm -qp --qf '%{NAME}-%{EVR}' "$pkg")"
+# Only dom0, TemplateVMs and StandaloneVMs keep /usr across restarts; in a
+# template-based AppVM the install lasts until its next reboot. Fine for a
+# spin, but say so. (dom0 and non-Qubes hosts have no such key: treat as full.)
+if [[ "$(qubesdb-read /qubes-vm-persistence 2>/dev/null || echo full)" != full ]]; then
+    echo "WARNING: this qube's root filesystem is not persistent; the install lasts until it restarts." >&2
+fi
 
-if ! rpm -q hexagon > /dev/null 2>&1; then
+# Full package identity (name-epoch:version-release, aka NEVR) of the local build.
+built_version="$("$rpm" -qp --qf '%{NAME}-%{EVR}' "$pkg")"
+
+if ! "$rpm" -q hexagon > /dev/null 2>&1; then
     # Fresh install: let dnf resolve dependencies.
     echo "Installing ${built_version}..."
     sudo dnf install -y "$pkg"
@@ -21,11 +35,11 @@ else
     # Already installed: swap in the local build directly. Unlike dnf
     # install/reinstall, this handles upgrade, same-version reinstall, and
     # downgrade uniformly, and never touches repo metadata.
-    echo "Installing ${built_version} (replacing $(rpm -q --qf '%{NAME}-%{EVR}' hexagon))..."
-    sudo rpm -Uvh --replacepkgs --oldpackage "$pkg"
+    echo "Installing ${built_version} (replacing $("$rpm" -q --qf '%{NAME}-%{EVR}' hexagon))..."
+    sudo "$rpm" -Uvh --replacepkgs --oldpackage "$pkg"
 fi
 
-installed_version="$(rpm -q --qf '%{NAME}-%{EVR}' hexagon)"
+installed_version="$("$rpm" -q --qf '%{NAME}-%{EVR}' hexagon)"
 if [[ $installed_version != "$built_version" ]]; then
     echo "ERROR: expected ${built_version} installed, but found ${installed_version}" >&2
     exit 1
