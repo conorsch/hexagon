@@ -246,6 +246,14 @@ class HexagonQube(object):
         If timeout is reached without confirmed shutdown,
         domain will be killed, then booted.
         """
+        # Re-fetch from a fresh app so we act on the CURRENT topology. A
+        # long-lived HexagonQube can predate VMs later attached to this one;
+        # its cached domain list would miss them, connected_vms would read
+        # empty, and ensure_halted() would take the plain-shutdown path that
+        # qubesd rejects with QubesVMInUseError. A fresh object also clears the
+        # memoized start_time, so uptime() reflects the reboot. (reconcile()
+        # refreshes self.vm for the same reason.)
+        self.vm = _qubes().domains[self.name]
         self.ensure_halted()
         self.vm.start()
         logging.debug("VM has started: {}".format(self.name))

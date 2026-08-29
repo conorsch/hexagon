@@ -8,12 +8,14 @@ so there's exactly one place to bump it; override per-run with HEXAGON_TEST_TEMP
 import os
 import sys
 
+from hexagon import policy as _policy
 from hexagon.qmgr import DEFAULT_TEMPLATE
 
-# Tag applied to every VM the suite creates. The qrexec policy scopes the
-# management qube's Admin API access to VMs carrying this tag, so teardown can
-# only ever touch test VMs (see docs/testing.md and qubes/policy.d/).
-TEST_TAG = "hexagon-test"
+# Tag applied to every VM the suite creates. The test policy (`hexagon policy
+# --test`) scopes the management qube's Admin API writes to VMs carrying it, so
+# teardown can only ever touch test VMs (see docs/testing.md). Single-sourced
+# from the policy renderer so the suite and the grants can't drift.
+TEST_TAG = _policy.TEST_TAG
 
 # All test VMs are named "<NAME_PREFIX><n>"; teardown is doubly guarded by both
 # the tag and this prefix.

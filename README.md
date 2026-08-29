@@ -49,6 +49,9 @@ hexagon shutdown --tags foo
 
 # Print the dom0 qrexec policy for a Qubes 4.3 Ansible ManagementVM
 hexagon policy
+
+# ...or the one the integration tests need, with this qube as the source
+hexagon policy --test
 ```
 
 ### Ansible ManagementVM policy

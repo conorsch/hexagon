@@ -2,6 +2,11 @@
 
 ## unreleased
 
+- test: reboot integration tests assert on `start_time` (a reboot yields a strictly newer boot) rather than whole-second uptime, which was too coarse for a fast reboot
+- fix(qmgr): `reboot()` re-fetches the VM from a fresh app before halting, so it sees VMs attached after the object was built (a stale domain list made a netvm reboot miss its clients -> `QubesVMInUseError`) and reports post-reboot uptime
+- fix(policy): both policies grant `admin.vm.feature.CheckWithTemplate`, which the `sudo poweroff` path (reboot of a netvm with clients) reads before running `qubes.VMShell`
+- fix(policy): test policy grants `admin.vm.CurrentState` (a refused call reads as power state "NA", so `is_running()` was silently False from an AppVM, breaking reboot and teardown) and drops wildcard `tag.Set`/`tag.Remove` on test VMs (a test VM could otherwise be tagged `hexagon-admin` and inherit the Ansible policy)
+- feat(policy): `hexagon policy --test` renders the integration-test policy with this qube (or `--admin-qube`) as the grant source; replaces the `MGMT_QUBE`-placeholder file `qubes/policy.d/30-hexagon-test.policy`
 - feat(reboot): `-t`/`--terminal` opens a terminal in each rebooted VM without waiting on it; a refused or failed launch is an error
 - test: integration test for `reboot -t`, and the `qubes.StartApp` grant it needs in the test policy
 - chore: default TemplateVM (app default and test suite) is now `fedora-43-xfce`, as Qubes ships it

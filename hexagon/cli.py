@@ -196,6 +196,13 @@ def parse_args():
         help="Print the dom0 qrexec policy for a Qubes 4.3 Ansible ManagementVM",
     )
     policy_parser.add_argument(
+        "--test",
+        default=False,
+        action="store_true",
+        help="render the integration-test policy (30-hexagon-test.policy) instead; "
+        "of the options below only --admin-qube applies",
+    )
+    policy_parser.add_argument(
         "--admin-tag",
         default=policy_mod.DEFAULT_ADMIN_TAG,
         help="Tag on qube(s) allowed to drive Ansible (grant source) [default: %(default)s]",
@@ -275,15 +282,17 @@ def main():
     # `policy` is pure text generation -- no Admin API needed, so it runs in any
     # AppVM (or dom0) without qrexec grants. Emit and exit before touching Qubes.
     if args.command == "policy":
-        sys.stdout.write(
-            policy_mod.render_policy(
+        if args.test:
+            body = policy_mod.render_test_policy(admin_qubes=args.admin_qubes or None)
+        else:
+            body = policy_mod.render_policy(
                 admin_tag=args.admin_tag,
                 target_tag=args.target_tag,
                 admin_qubes=args.admin_qubes or None,
                 sys_vms=args.sys_vms or None,
                 mgmt_dispvm=args.mgmt_dispvm,
             )
-        )
+        sys.stdout.write(body)
         sys.exit(0)
 
     # Everything below needs the Admin API. Bail with a specific reason if this

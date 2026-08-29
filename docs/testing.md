@@ -57,9 +57,18 @@ This is the interesting mode: grant a normal AppVM scoped Admin API access so th
 tests never need to run in dom0.
 
 1. Pick the qube that holds your hexagon checkout (the "management qube").
-2. In **dom0**, install `qubes/policy.d/30-hexagon-test.policy` as
-   `/etc/qubes/policy.d/30-hexagon-test.policy`, replacing `MGMT_QUBE` with that
-   qube's name.
+2. Have that qube render its own test policy (its hostname becomes the grant
+   source) and install it in **dom0** -- a different file from the Ansible
+   policy `hexagon policy` renders; the two coexist:
+
+   ```
+   qvm-run -p <mgmt-qube> 'hexagon policy --test' \
+     | sudo tee /etc/qubes/policy.d/30-hexagon-test.policy
+   qubes-policy-lint /etc/qubes/policy.d/30-hexagon-test.policy
+   ```
+
+   (`just install` in the qube first, or use `python -m hexagon policy --test`
+   from the checkout. `--admin-qube NAME` renders for another qube.)
 3. Install runtime deps in the management qube's template (`just install-deps`).
 4. From the management qube: `just test-integration`.
 
@@ -78,6 +87,9 @@ only the VMs tagged `hexagon-test`** (bootstrapped via the unforgeable
 - The CLI (`hexagon ls`) additionally needs the global *read* grants in the
   policy — it lists and inspects every VM.
 - Nothing in the suite requires write access to VMs it didn't create.
+- The qube's only tag power is applying `hexagon-test` to VMs qubesd stamped
+  `created-by-<qube>`. qubesd reserves no tag names, so anything broader would
+  let a test VM be tagged into another policy's grants (e.g. `hexagon-admin`).
 
 Running in **dom0** needs no policy (dom0 has full access); the same commands
 work there.
