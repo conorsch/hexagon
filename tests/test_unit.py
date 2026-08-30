@@ -162,6 +162,14 @@ def test_update_runs_dom0_then_vm_update(fake_qubes, monkeypatch, record_check_c
     ]
 
 
+def test_upgrade_aliases_update(fake_qubes, monkeypatch, record_check_call):
+    assert _run_update(monkeypatch, "upgrade") == 0
+    assert record_check_call == [
+        ["sudo", "qubes-dom0-update", "-y"],
+        ["qubes-vm-update", "--max-concurrency", "5", "--update-if-available"],
+    ]
+
+
 def test_update_skip_dom0(fake_qubes, monkeypatch, record_check_call):
     assert _run_update(monkeypatch, "update", "--skip-dom0") == 0
     assert record_check_call == [

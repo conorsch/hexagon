@@ -114,7 +114,10 @@ def parse_args():
         help="open a terminal in each VM once it's back up (does not wait for it to close)",
     )
     update_parser = subparsers.add_parser(
-        "update", parents=[tags_parser], help="update packages inside VM"
+        "update",
+        aliases=["upgrade"],
+        parents=[tags_parser],
+        help="update packages inside VM",
     )
     update_parser.add_argument(
         "vms", nargs=argparse.ZERO_OR_MORE, action="store", help="VMs to update"
@@ -362,7 +365,7 @@ def main():
         vms = [x.name for x in vms]
         func = reboot_vm
 
-    elif args.command == "update":
+    elif args.command in ("update", "upgrade"):
         # Delegates entirely to the upstream updaters: qubes-dom0-update for
         # dom0, and a single qubes-vm-update call which handles its own target
         # selection and parallelism. Naming specific VMs skips dom0.

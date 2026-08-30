@@ -2,6 +2,7 @@
 
 ## unreleased
 
+ - feat(upgrade): added `upgrade` alias for `update`
 - feat(upgrade): default `--max-concurrency` raised from `2` to `5`
 - feat(reboot): `-t`/`--terminal` opens a terminal in each rebooted VM
 - feat(update): `--vms`/`--domus` (alias `--skip-dom0`) and `--dom0`
