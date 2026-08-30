@@ -147,7 +147,7 @@ def parse_args():
     update_parser.add_argument(
         "--max-concurrency",
         action="store",
-        default=2,
+        default=5,
         type=int,
         help="How many VMs to update in parallel",
     )

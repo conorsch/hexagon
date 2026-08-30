@@ -2,6 +2,7 @@
 
 ## unreleased
 
+- feat(upgrade): default `--max-concurrency` raised from `2` to `5`
 - feat(reboot): `-t`/`--terminal` opens a terminal in each rebooted VM
 - feat(update): `--vms`/`--domus` (alias `--skip-dom0`) and `--dom0`
 - feat(policy): `hexagon policy --test` renders the integration-test policy for this qube (replaces the `MGMT_QUBE`-placeholder file)

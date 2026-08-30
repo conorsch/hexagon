@@ -158,21 +158,21 @@ def test_update_runs_dom0_then_vm_update(fake_qubes, monkeypatch, record_check_c
     assert _run_update(monkeypatch, "update") == 0
     assert record_check_call == [
         ["sudo", "qubes-dom0-update", "-y"],
-        ["qubes-vm-update", "--max-concurrency", "2", "--update-if-available"],
+        ["qubes-vm-update", "--max-concurrency", "5", "--update-if-available"],
     ]
 
 
 def test_update_skip_dom0(fake_qubes, monkeypatch, record_check_call):
     assert _run_update(monkeypatch, "update", "--skip-dom0") == 0
     assert record_check_call == [
-        ["qubes-vm-update", "--max-concurrency", "2", "--update-if-available"]
+        ["qubes-vm-update", "--max-concurrency", "5", "--update-if-available"]
     ]
 
 
 def test_update_named_vm_skips_dom0(fake_qubes, monkeypatch, record_check_call):
     assert _run_update(monkeypatch, "update", "work-vm") == 0
     assert record_check_call == [
-        ["qubes-vm-update", "--max-concurrency", "2", "--targets", "work-vm"]
+        ["qubes-vm-update", "--max-concurrency", "5", "--targets", "work-vm"]
     ]
 
 
@@ -189,7 +189,7 @@ def test_update_dom0_flag_skips_vms(fake_qubes, monkeypatch, record_check_call):
 def test_update_vms_flag_skips_dom0(fake_qubes, monkeypatch, record_check_call):
     assert _run_update(monkeypatch, "update", "--vms") == 0
     assert record_check_call == [
-        ["qubes-vm-update", "--max-concurrency", "2", "--update-if-available"]
+        ["qubes-vm-update", "--max-concurrency", "5", "--update-if-available"]
     ]
 
 

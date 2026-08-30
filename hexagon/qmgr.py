@@ -46,7 +46,7 @@ def dom0_update_cmd():
     return ["sudo", "qubes-dom0-update", "-y"]
 
 
-def vm_update_cmd(targets=(), max_concurrency=2, force=False):
+def vm_update_cmd(targets=(), max_concurrency=5, force=False):
     # `--targets` updates the named VMs unconditionally, so `--force-update`
     # only matters when qubes-vm-update is doing its own selection.
     cmd = ["qubes-vm-update", "--max-concurrency", str(max_concurrency)]
