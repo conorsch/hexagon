@@ -94,6 +94,19 @@ find %{buildroot} -exec touch -m -d @%{source_date_epoch} {} +
 %{_bindir}/qvm-reboot
 
 %changelog
+* Sun Aug 30 2026 Conor Schaefer <conor@ruin.dev> - 0.3.3
+ - feat(upgrade): added `upgrade` alias for `update`
+- feat(upgrade): default `--max-concurrency` raised from `2` to `5`
+- feat(reboot): `-t`/`--terminal` opens a terminal in each rebooted VM
+- feat(update): `--vms`/`--domus` (alias `--skip-dom0`) and `--dom0`
+- feat(policy): `hexagon policy --test` renders the integration-test policy for this qube (replaces the `MGMT_QUBE`-placeholder file)
+- feat(policy): grant `qubes.VMShell` + `qubes.StartApp` on managed VMs, so `hexagon reboot` works from the MgmtVM
+- fix(qmgr): `reboot()` re-fetches the VM first, so a netvm reboot sees its clients
+- fix(policy): test policy grants `admin.vm.CurrentState`; drops wildcard `tag.Set`/`tag.Remove` on test VMs
+- fix(policy): both policies grant `admin.vm.feature.CheckWithTemplate` (the `poweroff` path needs it)
+- fix(install-rpm): query with the host's `rpm`, so `just install` works in an AppVM, not only dom0
+- chore: default TemplateVM is now `fedora-43-xfce`
+
 * Fri Aug 28 2026 Conor Schaefer <conor@ruin.dev> - 0.3.2
 - fix(policy): emit `ansible.{Create,Remove}ManagementPolicies` once, targeting the managed VM (matches upstream qubes-ansible)
 - feat(cli): preflight — non-Qubes host, missing `qubesadmin`, or unreachable Admin API exits 69 with a specific message
