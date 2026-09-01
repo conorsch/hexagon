@@ -94,6 +94,10 @@ find %{buildroot} -exec touch -m -d @%{source_date_epoch} {} +
 %{_bindir}/qvm-reboot
 
 %changelog
+* Tue Sep 1 2026 Conor Schaefer <conor@ruin.dev> - 0.3.4
+ - feat(terminal): `hexagon terminal <VM ...>` opens a GUI terminal in the target VM(s); starts halted VMs automatically
+ - refactor(cli): `reboot -t` delegates to the same `terminal_vm` logic as the new `terminal` subcommand (DRY)
+
 * Sun Aug 30 2026 Conor Schaefer <conor@ruin.dev> - 0.3.3
  - feat(upgrade): added `upgrade` alias for `update`
 - feat(upgrade): default `--max-concurrency` raised from `2` to `5`

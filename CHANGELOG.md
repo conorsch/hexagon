@@ -2,6 +2,8 @@
 
 ## unreleased
 
+## 0.3.4, 2026-09-01
+
  - feat(terminal): `hexagon terminal <VM ...>` opens a GUI terminal in the target VM(s); starts halted VMs automatically
  - refactor(cli): `reboot -t` delegates to the same `terminal_vm` logic as the new `terminal` subcommand (DRY)
 
