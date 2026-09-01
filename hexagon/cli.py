@@ -193,6 +193,12 @@ def parse_args():
     start_parser.add_argument(
         "vms", nargs=argparse.ZERO_OR_MORE, action="store", help="VMs to start"
     )
+    terminal_parser = subparsers.add_parser(
+        "terminal", parents=[tags_parser], help="Open a GUI terminal in VM(s)"
+    )
+    terminal_parser.add_argument(
+        "vms", nargs=argparse.ZERO_OR_MORE, action="store", help="VMs to open terminals in"
+    )
 
     policy_parser = subparsers.add_parser(
         "policy",
@@ -247,7 +253,7 @@ def parse_args():
     if not args.command:
         msg = (
             "subcommand required, choose one of "
-            "{ls, reboot, start, shutdown, update, reconcile, policy}"
+            "{ls, reboot, start, shutdown, update, reconcile, terminal, policy}"
         )
         print(msg)
         sys.exit(1)
@@ -272,11 +278,17 @@ def reconcile_vm(args, vm_name):
     cq.reconcile()
 
 
+def terminal_vm(args, qube):
+    """Open a GUI terminal in a VM. Shared by `hexagon terminal` and the
+    `--terminal` flag on other subcommands, so the logic stays in one place."""
+    qube.open_terminal()
+
+
 def reboot_vm(args, vm_name):
     cq = HexagonQube(vm_name)
     cq.reboot()
     if args.terminal:
-        cq.open_terminal()
+        terminal_vm(args, cq)
 
 
 def main():
@@ -426,6 +438,20 @@ def main():
             x.vm.start()
 
         func = f
+
+    elif args.command == "terminal":
+        requested_vms = len(vms)
+        if requested_vms > 0:
+            vms = [HexagonQube(x.name) for x in q.domains if x.name in vms]
+            if len(vms) != requested_vms:
+                msg = "Some VMs could not be found"
+                raise Exception(msg)
+        else:
+            logging.error("No VMs were declared")
+            msg = "Terminal must target specific VMs"
+            raise NotImplementedError(msg)
+
+        func = terminal_vm
     else:
         msg = "Action not supported: {}".format(args.command)
         raise NotImplementedError(msg)

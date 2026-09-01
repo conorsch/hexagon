@@ -75,7 +75,7 @@ def test_management_policies_rpcs_target_the_managed_vm():
 
 def test_hexagon_cli_grants_are_plain_calls_into_managed_vms():
     # hexagon's own verbs from the MgmtVM run qrexec services IN the managed VM
-    # (reboot: qubes.VMShell for `sudo poweroff`; reboot -t: qubes.StartApp).
+    # (reboot: qubes.VMShell for `sudo poweroff`; terminal/reboot -t: qubes.StartApp).
     # They must ride the target tag with a bare `allow`: a target=dom0 redirect
     # (right for admin.* calls) would run them in dom0.
     body = policy.render_policy(admin_qubes=[ADMIN_QUBE])

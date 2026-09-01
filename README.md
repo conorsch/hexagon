@@ -31,6 +31,9 @@ hexagon reboot sys-whonix
 # (from a management qube this needs a `qubes.StartApp +qubes-run-terminal` grant)
 hexagon reboot -t work
 
+# Open a terminal in one or more VMs (starts the VM if halted)
+hexagon terminal work personal
+
 # Modify TemplateVM settings for several VMs at once (e.g. fedora-30 -> fedora-34)
 hexagon reconcile --template fedora-34 sys-usb sys-net sys-firewall
 
@@ -90,7 +93,7 @@ lifecycle) stays with hexagon's other verbs; Ansible only enforces config
 *inside* qubes. The policy also carries the two plain qrexec grants hexagon's
 own verbs need from that MgmtVM: `qubes.VMShell` (`hexagon reboot` powers a
 netvm off from inside when clients are attached) and
-`qubes.StartApp +qubes-run-terminal` (`hexagon reboot -t`).
+`qubes.StartApp +qubes-run-terminal` (`hexagon terminal` and `reboot -t`).
 
 ## Installation
 In order to use the tool, you must build the RPM in an AppVM,

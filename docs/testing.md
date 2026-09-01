@@ -80,10 +80,11 @@ only the VMs tagged `hexagon-test`** (bootstrapped via the unforgeable
 #### Privilege tiers
 
 - Lifecycle/management on self-created VMs needs only the scoped grant.
-- `hexagon reboot -t` additionally needs `qubes.StartApp +qubes-run-terminal`
-  to the target (a regular qrexec call, like the `qubes.VMShell` reboot uses);
-  hexagon exits non-zero if it's refused, so `test_reboot_terminal_flag_is_granted`
-  fails loudly when the grant is missing.
+- `hexagon reboot -t` and `hexagon terminal` additionally need
+  `qubes.StartApp +qubes-run-terminal` to the target (a regular qrexec call,
+  like the `qubes.VMShell` reboot uses); hexagon exits non-zero if it's
+  refused, so `test_reboot_terminal_flag_is_granted` fails loudly when the
+  grant is missing.
 - The CLI (`hexagon ls`) additionally needs the global *read* grants in the
   policy — it lists and inspects every VM.
 - Nothing in the suite requires write access to VMs it didn't create.

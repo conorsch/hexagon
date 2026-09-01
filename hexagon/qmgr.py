@@ -258,16 +258,27 @@ class HexagonQube(object):
         self.vm.start()
         logging.debug("VM has started: {}".format(self.name))
 
+    def ensure_running(self):
+        """Start the VM if it isn't already up. Idempotent — a no-op on a
+        running VM. Re-fetches from a fresh app so the power state is current,
+        mirroring reboot()'s approach. Used by open_terminal() so that
+        `hexagon terminal` works on a halted VM without a separate start step.
+        """
+        self.vm = _qubes().domains[self.name]
+        if not self.vm.is_running():
+            self.vm.start()
+
     def open_terminal(self, grace=1):
         """
-        Launch the VM's default terminal (what the app menu's "Run Terminal"
-        entry does) without waiting for it to close. The launcher is detached
-        from our session and stdio -- except stderr, so a qrexec "Request
-        refused" stays visible -- and watched for only `grace` seconds: a
-        quick non-zero exit (e.g. denied by policy when called from a
-        management qube) is an error; anything still running has launched.
-        Works from dom0 and from an AppVM (`wait=False` would not).
+        Ensure the VM is running, then launch its default terminal (what the
+        app menu's "Run Terminal" entry does) without waiting for it to close.
+        The launcher is detached from our session and stdio -- except stderr,
+        so a qrexec "Request refused" stays visible -- and watched for only
+        `grace` seconds: a quick non-zero exit (e.g. denied by policy when
+        called from a management qube) is an error; anything still running has
+        launched. Works from dom0 and from an AppVM (`wait=False` would not).
         """
+        self.ensure_running()
         service = "qubes.StartApp+qubes-run-terminal"
         logging.debug("Opening terminal in VM: {}".format(self.name))
         proc = self.vm.run_service(

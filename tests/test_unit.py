@@ -76,7 +76,7 @@ def test_existing_vm_config_not_clobbered(fake_qubes):
 
 
 def test_tags_option_accepted_on_all_vm_subcommands(monkeypatch):
-    for cmd in ("ls", "reboot", "update", "reconcile", "shutdown", "start"):
+    for cmd in ("ls", "reboot", "update", "reconcile", "shutdown", "start", "terminal"):
         monkeypatch.setattr(cli.sys, "argv", ["hexagon", cmd, "--tags", "foo"])
         args = cli.parse_args()
         assert args.tags == "foo", cmd
@@ -317,6 +317,9 @@ def _terminal_vm(fake_qubes, rc):
             self.name = name
             self.tags = set()
 
+        def is_running(self):
+            return True
+
         def run_service(self, service, **kwargs):
             recorded["service"] = service
             recorded["kwargs"] = kwargs
@@ -352,6 +355,97 @@ def test_open_terminal_accepts_quick_clean_exit(fake_qubes):
     # A launcher that detaches and exits 0 immediately is still a success.
     _terminal_vm(fake_qubes, rc=0)
     qmgr.HexagonQube("work-vm").open_terminal()
+
+
+def test_terminal_subcommand_parses(monkeypatch):
+    monkeypatch.setattr(cli.sys, "argv", ["hexagon", "terminal", "work-vm", "personal"])
+    args = cli.parse_args()
+    assert args.command == "terminal"
+    assert args.vms == ["work-vm", "personal"]
+
+
+def test_terminal_vm_delegates_to_open_terminal(fake_qubes, monkeypatch):
+    calls = []
+    monkeypatch.setattr(qmgr.HexagonQube, "open_terminal", lambda self: calls.append(self.name))
+    qube = qmgr.HexagonQube("work-vm")
+    cli.terminal_vm(types.SimpleNamespace(), qube)
+    assert calls == ["work-vm"]
+
+
+def test_reboot_vm_delegates_to_terminal_vm(fake_qubes, monkeypatch):
+    # DRY: reboot --terminal goes through terminal_vm, not open_terminal directly.
+    calls = []
+    monkeypatch.setattr(qmgr.HexagonQube, "reboot", lambda self: None)
+    monkeypatch.setattr(cli, "terminal_vm", lambda args, qube: calls.append(qube.name))
+
+    cli.reboot_vm(types.SimpleNamespace(terminal=True), "work-vm")
+    assert calls == ["work-vm"]
+
+    calls.clear()
+    cli.reboot_vm(types.SimpleNamespace(terminal=False), "work-vm")
+    assert calls == []
+
+
+def _halted_terminal_vm(fake_qubes):
+    """Install a fake 'work-vm' that reports as halted, recording start() calls."""
+    recorded = {"started": False}
+
+    class FakePopen:
+        def wait(self, timeout=None):
+            raise qmgr.subprocess.TimeoutExpired("qrexec", timeout)
+
+    class FakeVM:
+        def __init__(self, name):
+            self.name = name
+            self.tags = set()
+
+        def is_running(self):
+            return False
+
+        def start(self):
+            recorded["started"] = True
+
+        def run_service(self, service, **kwargs):
+            return FakePopen()
+
+    fake_qubes.domains["work-vm"] = FakeVM("work-vm")
+    return recorded
+
+
+def test_ensure_running_starts_halted_vm(fake_qubes):
+    recorded = _halted_terminal_vm(fake_qubes)
+    qmgr.HexagonQube("work-vm").ensure_running()
+    assert recorded["started"] is True
+
+
+def test_ensure_running_noop_on_running_vm(fake_qubes):
+    _terminal_vm(fake_qubes, rc=None)
+    qube = qmgr.HexagonQube("work-vm")
+    # Should not raise: VM is already running, start() is never called.
+    qube.ensure_running()
+
+
+def test_open_terminal_starts_halted_vm(fake_qubes):
+    recorded = _halted_terminal_vm(fake_qubes)
+    qmgr.HexagonQube("work-vm").open_terminal()
+    assert recorded["started"] is True
+
+
+def test_terminal_dry_run_logs_without_running(fake_qubes, monkeypatch, caplog):
+    caplog.set_level("DEBUG")
+    _tagged_fake_domains(fake_qubes)
+    monkeypatch.setattr(cli.sys, "argv", ["hexagon", "--dry-run", "terminal", "--tags", "foo"])
+    with pytest.raises(SystemExit) as excinfo:
+        cli.main()
+    assert excinfo.value.code == 0
+    assert "tagged-1" in caplog.text
+    assert "tagged-2" in caplog.text
+
+
+def test_terminal_requires_vms(fake_qubes, monkeypatch):
+    monkeypatch.setattr(cli.sys, "argv", ["hexagon", "terminal"])
+    with pytest.raises(NotImplementedError, match="Terminal must target specific VMs"):
+        cli.main()
 
 
 def test_qvm_reboot_main_execs_hexagon_reboot(monkeypatch):

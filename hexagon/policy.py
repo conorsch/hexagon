@@ -9,7 +9,7 @@ they coexist in ``/etc/qubes/policy.d/``:
     qubes. The two plain qrexec grants hexagon's own verbs need from that
     MgmtVM ride along on the same tags: ``qubes.VMShell`` (``hexagon reboot``
     powers a netvm off from inside when clients are attached) and
-    ``qubes.StartApp`` (``reboot -t``).
+    ``qubes.StartApp`` (``hexagon terminal`` and ``reboot -t``).
   * ``render_test_policy`` / ``hexagon policy --test`` -- what the integration
     suite (docs/testing.md) needs from the qube it runs in: create test VMs,
     read everything, write only to VMs tagged ``hexagon-test``.
@@ -115,7 +115,7 @@ POLICY_TEMPLATE = (
 #                       that has clients attached (refused -> 30s poll, kill);
 #                       the VMShell prologue also reads feature.CheckWithTemplate
 #                       (granted above)
-#       qubes.StartApp  `hexagon reboot -t` opens a terminal (refused -> exit 1)
+#       qubes.StartApp  `hexagon terminal` / `reboot -t` opens a terminal (refused -> exit 1)
 {{ rule('qubes.VMShell', admin, target, 'allow') -}}
 {{ rule('qubes.StartApp', admin, target, 'allow', arg='+qubes-run-terminal') }}
 # --- Clone base templates: tag any TemplateVM @tag:{{ target_tag }} to permit
@@ -221,7 +221,7 @@ TEST_POLICY_TEMPLATE = (
 {% endfor %}
 # --- Plain qrexec calls INTO test VMs (no target= redirect). qubes.VMShell: a
 #     netvm reboot with clients attached runs `sudo poweroff` inside the VM.
-#     qubes.StartApp: `hexagon reboot -t` opens a terminal; hexagon exits
+#     qubes.StartApp: `hexagon terminal` / `reboot -t` opens a terminal; hexagon exits
 #     non-zero if that's refused, so the suite doubles as a check of this grant. ---
 {{ rule('qubes.VMShell', mq, target, 'allow') -}}
 {{ rule('qubes.StartApp', mq, target, 'allow', arg='+qubes-run-terminal') }}

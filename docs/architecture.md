@@ -6,7 +6,7 @@ hexagon is a thin CLI over the [Qubes Admin API](https://doc.qubes-os.org/en/lat
 | Module | Role |
 |--------|------|
 | `hexagon/cli.py` | argparse front end; dispatches subcommands, fans VM operations out over a thread pool |
-| `hexagon/qmgr.py` | `HexagonQube`: desired-config reconcile, reboot-without-dropping-clients, update commands |
+| `hexagon/qmgr.py` | `HexagonQube`: desired-config reconcile, reboot-without-dropping-clients, terminal launching, update commands |
 | `hexagon/policy.py` | pure-text rendering of the dom0 qrexec policy for an Ansible ManagementVM |
 | `hexagon/preflight.py` | refuses to run where the Admin API can't be reached, with a specific reason |
 

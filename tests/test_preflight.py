@@ -113,7 +113,7 @@ def test_run_exits_with_dedicated_code_and_prefixed_message(no_markers, capsys):
 
 
 def test_vm_subcommands_preflight_before_touching_qubes(no_markers, no_qubesadmin, monkeypatch):
-    for cmd in ("ls", "reboot", "update", "reconcile", "shutdown", "start"):
+    for cmd in ("ls", "reboot", "update", "reconcile", "shutdown", "start", "terminal"):
         assert _main(monkeypatch, cmd) == preflight.EXIT_CODE, cmd
 
 
