@@ -104,12 +104,13 @@ def test_update_dom0_and_vms_flags_are_exclusive(monkeypatch):
     assert excinfo.value.code == 2
 
 
-def test_reboot_terminal_flag_parses(monkeypatch):
-    for flag in ("-t", "--terminal"):
-        monkeypatch.setattr(cli.sys, "argv", ["hexagon", "reboot", flag, "work-vm"])
-        args = cli.parse_args()
-        assert args.terminal is True, flag
-        assert args.vms == ["work-vm"]
+def test_terminal_flag_parses_on_reboot_and_start(monkeypatch):
+    for cmd in ("reboot", "start"):
+        for flag in ("-t", "--terminal"):
+            monkeypatch.setattr(cli.sys, "argv", ["hexagon", cmd, flag, "work-vm"])
+            args = cli.parse_args()
+            assert args.terminal is True, (cmd, flag)
+            assert args.vms == ["work-vm"]
 
 
 def test_dom0_update_cmd():
@@ -299,6 +300,45 @@ def test_reboot_vm_opens_terminal_after_reboot(fake_qubes, monkeypatch):
     calls.clear()
     cli.reboot_vm(types.SimpleNamespace(terminal=False), "work-vm")
     assert calls == ["reboot"]
+
+
+def test_start_vm_opens_terminal_after_start(fake_qubes, monkeypatch):
+    calls = []
+    monkeypatch.setattr(qmgr.HexagonQube, "open_terminal", lambda self: calls.append("terminal"))
+
+    class FakeVM:
+        def start(self):
+            calls.append("start")
+
+    fake_qubes.domains["work-vm"] = FakeVM()
+    qube = qmgr.HexagonQube("work-vm")
+
+    cli.start_vm(types.SimpleNamespace(terminal=True), qube)
+    assert calls == ["start", "terminal"]
+
+    calls.clear()
+    cli.start_vm(types.SimpleNamespace(terminal=False), qube)
+    assert calls == ["start"]
+
+
+def test_start_vm_delegates_to_terminal_vm(fake_qubes, monkeypatch):
+    # DRY: start --terminal goes through terminal_vm, not open_terminal directly.
+    calls = []
+
+    class FakeVM:
+        def start(self):
+            pass
+
+    fake_qubes.domains["work-vm"] = FakeVM()
+    qube = qmgr.HexagonQube("work-vm")
+    monkeypatch.setattr(cli, "terminal_vm", lambda args, qube: calls.append(qube.name))
+
+    cli.start_vm(types.SimpleNamespace(terminal=True), qube)
+    assert calls == ["work-vm"]
+
+    calls.clear()
+    cli.start_vm(types.SimpleNamespace(terminal=False), qube)
+    assert calls == []
 
 
 def _terminal_vm(fake_qubes, rc):

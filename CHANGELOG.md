@@ -2,6 +2,8 @@
 
 ## unreleased
 
+ - feat(start): `-t`/`--terminal` opens a terminal in each started VM (shares the `reboot -t` flag via a common parent parser)
+
 ## 0.3.4, 2026-09-01
 
  - feat(terminal): `hexagon terminal <VM ...>` opens a GUI terminal in the target VM(s); starts halted VMs automatically

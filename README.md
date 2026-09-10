@@ -31,6 +31,9 @@ hexagon reboot sys-whonix
 # (from a management qube this needs a `qubes.StartApp +qubes-run-terminal` grant)
 hexagon reboot -t work
 
+# Start a VM (if halted), then open a terminal in it
+hexagon start -t work
+
 # Open a terminal in one or more VMs (starts the VM if halted)
 hexagon terminal work personal
 

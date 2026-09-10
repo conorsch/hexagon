@@ -70,6 +70,17 @@ def parse_args():
     tags_parser = argparse.ArgumentParser(add_help=False)
     tags_parser.add_argument("--tags", default="", action="store", help="select VMs by tag")
 
+    # Shared by subcommands that leave a VM running: open a terminal in each
+    # VM once the operation completes (does not wait for it to close).
+    terminal_flag_parser = argparse.ArgumentParser(add_help=False)
+    terminal_flag_parser.add_argument(
+        "-t",
+        "--terminal",
+        default=False,
+        action="store_true",
+        help="open a terminal in each VM once the operation completes (does not wait for it to close)",
+    )
+
     ls_parser = subparsers.add_parser(
         "ls", parents=[tags_parser], help="ls VMs, by features or prefs"
     )
@@ -96,7 +107,9 @@ def parse_args():
         help="Filter by VM attribute, property, e.g. vcpus=2",
     )
     ls_parser.add_argument("vms", nargs=argparse.ZERO_OR_MORE, action="store", help="VMs to list")
-    reboot_parser = subparsers.add_parser("reboot", parents=[tags_parser], help="reboot VMs")
+    reboot_parser = subparsers.add_parser(
+        "reboot", parents=[tags_parser, terminal_flag_parser], help="reboot VMs"
+    )
     reboot_parser.add_argument(
         "vms", nargs=argparse.ZERO_OR_MORE, action="store", help="VMs to reboot"
     )
@@ -105,13 +118,6 @@ def parse_args():
         default=False,
         action="store_true",
         help="Reboot only VMs whose TemplateVMs have been recently updated",
-    )
-    reboot_parser.add_argument(
-        "-t",
-        "--terminal",
-        default=False,
-        action="store_true",
-        help="open a terminal in each VM once it's back up (does not wait for it to close)",
     )
     update_parser = subparsers.add_parser(
         "update",
@@ -188,7 +194,9 @@ def parse_args():
         "vms", nargs=argparse.ZERO_OR_MORE, action="store", help="VMs to shutdown"
     )
     start_parser = subparsers.add_parser(
-        "start", parents=[tags_parser], help="Ensures specified VMs are running"
+        "start",
+        parents=[tags_parser, terminal_flag_parser],
+        help="Ensures specified VMs are running",
     )
     start_parser.add_argument(
         "vms", nargs=argparse.ZERO_OR_MORE, action="store", help="VMs to start"
@@ -289,6 +297,12 @@ def reboot_vm(args, vm_name):
     cq.reboot()
     if args.terminal:
         terminal_vm(args, cq)
+
+
+def start_vm(args, qube):
+    qube.vm.start()
+    if args.terminal:
+        terminal_vm(args, qube)
 
 
 def main():
@@ -434,10 +448,7 @@ def main():
             msg = "Start must target specific VMs"
             raise NotImplementedError(msg)
 
-        def f(args, x):
-            x.vm.start()
-
-        func = f
+        func = start_vm
 
     elif args.command == "terminal":
         requested_vms = len(vms)
