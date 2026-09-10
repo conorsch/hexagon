@@ -75,4 +75,4 @@ install:
 [group('setup')]
 install-deps:
   sudo dnf install -y \
-    ruff python3-pytest python3-devel qubes-core-admin-client
+    ruff python3-pytest python3-devel python3-jinja2 qubes-core-admin-client
